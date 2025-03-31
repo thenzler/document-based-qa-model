@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dokumente | Dokumentenbasiertes QA</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header class="bg-primary text-white py-3">
+        <div class="container">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-book me-3 fs-2"></i>
+                <h1>Dokumentenbasiertes QA & Churn-Prediction</h1>
+            </div>
+        </div>
+    </header>
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/"><i class="bi bi-house-door"></i> Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/qa"><i class="bi bi-question-circle"></i> Frage & Antwort</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/churn"><i class="bi bi-graph-up"></i> Churn-Prediction</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/documents"><i class="bi bi-file-text"></i> Dokumente</a>
+                    </li>
+                </ul>
+            </div>
+            <div class="status-indicator" id="status-indicator">
+                <div class="spinner-border spinner-border-sm text-light me-2 d-none" id="status-spinner" role="status"></div>
+                <span id="status-text">Initialisierung...</span>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container my-4">
+        <!-- Document management section -->
+        <div class="row mb-4">
+            <div class="col">
+                <div class="card">
+                    <div class="card-header bg-secondary text-white">
+                        <h2 class="h4 mb-0"><i class="bi bi-file-text"></i> Dokumentenverwaltung</h2>
+                    </div>
+                    <div class="card-body">
+                        <p>Verwalten Sie die Dokumente, die für die Beantwortung von Fragen und Churn-Prediction-Erklärungen verwendet werden.</p>
+                        
+                        <!-- Document upload card -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-light">
+                                <h3 class="h5 mb-0">Neues Dokument hinzufügen</h3>
+                            </div>
+                            <div class="card-body">
+                                <form id="document-upload-form">
+                                    <div class="input-group mb-3">
+                                        <input type="file" class="form-control" id="document-upload" accept=".txt,.pdf,.docx,.md,.html">
+                                        <button class="btn btn-primary" type="submit" id="upload-document-btn">
+                                            <i class="bi bi-upload"></i> Hochladen
+                                        </button>
+                                    </div>
+                                    <div class="form-text mb-3">Unterstützte Formate: TXT, PDF, DOCX, MD, HTML</div>
+                                </form>
+                                
+                                <!-- Upload status alert, hidden initially -->
+                                <div class="alert alert-info d-none" role="alert" id="upload-status">
+                                    Dokument wird hochgeladen und verarbeitet...
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Documents table -->
+                        <div class="card">
+                            <div class="card-header bg-light">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h3 class="h5 mb-0">Verfügbare Dokumente</h3>
+                                    <button class="btn btn-sm btn-outline-primary" id="refresh-docs-btn">
+                                        <i class="bi bi-arrow-clockwise"></i> Aktualisieren
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <!-- Loading indicator -->
+                                <div id="documents-loading" class="text-center py-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Wird geladen...</span>
+                                    </div>
+                                    <p class="mt-2">Dokumente werden geladen...</p>
+                                </div>
+                                
+                                <!-- Documents table -->
+                                <div id="documents-table-container" class="d-none">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>Dateiname</th>
+                                                    <th>Größe</th>
+                                                    <th>Chunks</th>
+                                                    <th>Aktionen</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="documents-table-body">
+                                                <!-- Documents will be populated dynamically -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                
+                                <!-- Empty state -->
+                                <div id="no-documents" class="text-center py-4 d-none">
+                                    <i class="bi bi-file-earmark-x text-muted" style="font-size: 3rem;"></i>
+                                    <p class="mt-2">Keine Dokumente verfügbar. Laden Sie Dokumente hoch, um zu beginnen.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Document details section, initially hidden -->
+        <div class="row d-none" id="document-details-container">
+            <div class="col">
+                <div class="card">
+                    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                        <h3 class="h5 mb-0"><i class="bi bi-file-text"></i> <span id="document-title">Dokumentdetails</span></h3>
+                        <button type="button" class="btn-close btn-close-white" id="close-document-details"></button>
+                    </div>
+                    <div class="card-body">
+                        <!-- Document info -->
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h4 class="h6 mb-0">Dokumentinformationen</h4>
+                                <span class="badge bg-secondary" id="document-chunks">0 Chunks</span>
+                            </div>
+                            
+                            <!-- Document metadata -->
+                            <div class="row" id="document-metadata">
+                                <!-- Metadata will be populated dynamically -->
+                            </div>
+                        </div>
+                        
+                        <!-- Document chunks -->
+                        <div class="mb-4">
+                            <h4 class="h6 mb-3">Inhaltsabschnitte</h4>
+                            <div class="accordion" id="document-chunks-accordion">
+                                <!-- Chunks will be populated dynamically -->
+                            </div>
+                        </div>
+                        
+                        <!-- Keywords -->
+                        <div>
+                            <h4 class="h6 mb-3">Extrahierte Schlüsselwörter</h4>
+                            <div id="document-keywords">
+                                <!-- Keywords will be populated dynamically -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Document re-processing options -->
+        <div class="row mt-4">
+            <div class="col">
+                <div class="card">
+                    <div class="card-header bg-warning text-dark">
+                        <h3 class="h5 mb-0"><i class="bi bi-gear"></i> Dokumentenverarbeitung</h3>
+                    </div>
+                    <div class="card-body">
+                        <p>Steuern Sie, wie die Dokumente verarbeitet und indiziert werden.</p>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="chunk-size" class="form-label">Chunk-Größe (Zeichen):</label>
+                                    <input type="range" class="form-range" min="500" max="2000" step="100" value="1000" id="chunk-size">
+                                    <div class="d-flex justify-content-between">
+                                        <span>500</span>
+                                        <span id="chunk-size-value">1000</span>
+                                        <span>2000</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="chunk-overlap" class="form-label">Chunk-Überlappung (Zeichen):</label>
+                                    <input type="range" class="form-range" min="0" max="500" step="50" value="200" id="chunk-overlap">
+                                    <div class="d-flex justify-content-between">
+                                        <span>0</span>
+                                        <span id="chunk-overlap-value">200</span>
+                                        <span>500</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <button class="btn btn-warning" id="reprocess-btn">
+                                <i class="bi bi-arrow-repeat"></i> Dokumente neu verarbeiten
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-dark text-white py-3 mt-auto">
+        <div class="container text-center">
+            <p class="mb-0">© 2025 Dokumentenbasiertes QA & Churn-Prediction System</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/documents.js') }}"></script>
+</body>
+</html>
