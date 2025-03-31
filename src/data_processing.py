@@ -2,7 +2,7 @@
 Data Processing Module for Document-based QA System
 
 This module handles all the document processing, including:
-- Loading documents from various formats (txt, pdf, etc.)
+- Loading documents from various formats (txt, pdf, docx, etc.)
 - Preprocessing text (tokenization, cleaning, etc.)
 - Creating document embeddings
 - Indexing documents for fast retrieval
@@ -16,6 +16,7 @@ import numpy as np
 from typing import List, Dict, Union, Tuple, Optional, Set
 from pathlib import Path
 import json
+import logging
 
 # For text processing
 from transformers import AutoTokenizer
@@ -25,6 +26,24 @@ import spacy
 # For document indexing
 import faiss
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+# For document parsing
+import fitz  # PyMuPDF for PDF
+import docx  # python-docx for DOCX
+import pdfplumber
+from bs4 import BeautifulSoup
+import nltk
+from tqdm import tqdm
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+try:
+    nltk.data.find('tokenizers/punkt')
+except:
+    nltk.download('punkt')
+
 
 class DocumentProcessor:
     """Handles document loading, preprocessing, and indexing"""
@@ -75,25 +94,35 @@ class DocumentProcessor:
         markdown_files = list(docs_dir.glob("**/*.md"))
         pdf_files = list(docs_dir.glob("**/*.pdf"))
         docx_files = list(docs_dir.glob("**/*.docx"))
+        html_files = list(docs_dir.glob("**/*.html"))
         
-        all_files = text_files + markdown_files + pdf_files + docx_files
+        all_files = text_files + markdown_files + pdf_files + docx_files + html_files
         documents = []
         
-        for file_path in all_files:
+        for file_path in tqdm(all_files, desc="Loading documents"):
             try:
                 # Handle different file types
                 if file_path.suffix.lower() == '.txt' or file_path.suffix.lower() == '.md':
                     with open(file_path, "r", encoding="utf-8") as f:
                         text = f.read()
+                
                 elif file_path.suffix.lower() == '.pdf':
-                    # For PDF files, you would need additional libraries
-                    # This is a placeholder for PDF processing
-                    print(f"PDF processing not implemented for {file_path}")
-                    continue
+                    text = self._extract_text_from_pdf(file_path)
+                
                 elif file_path.suffix.lower() == '.docx':
-                    # For DOCX files, you would need additional libraries
-                    # This is a placeholder for DOCX processing
-                    print(f"DOCX processing not implemented for {file_path}")
+                    text = self._extract_text_from_docx(file_path)
+                
+                elif file_path.suffix.lower() == '.html':
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        html_content = f.read()
+                    text = self._extract_text_from_html(html_content)
+                
+                else:
+                    continue
+                
+                # Skip empty documents
+                if not text.strip():
+                    logger.warning(f"Empty document: {file_path}")
                     continue
                 
                 # Create document entry with metadata
@@ -107,10 +136,106 @@ class DocumentProcessor:
                 documents.append(doc)
                 
             except Exception as e:
-                print(f"Error loading {file_path}: {e}")
+                logger.error(f"Error loading {file_path}: {e}")
         
-        print(f"Loaded {len(documents)} documents")
+        logger.info(f"Loaded {len(documents)} documents")
         return documents
+    
+    def _extract_text_from_pdf(self, file_path: Path) -> str:
+        """
+        Extract text from a PDF file using both PyMuPDF and pdfplumber
+        for better extraction quality.
+        
+        Args:
+            file_path: Path to the PDF file
+            
+        Returns:
+            Extracted text
+        """
+        text = ""
+        
+        # Try PyMuPDF first
+        try:
+            doc = fitz.open(file_path)
+            for page_num in range(len(doc)):
+                page = doc.load_page(page_num)
+                text += page.get_text()
+            doc.close()
+        except Exception as e:
+            logger.warning(f"PyMuPDF extraction failed for {file_path}: {e}")
+            
+            # Fallback to pdfplumber
+            try:
+                with pdfplumber.open(file_path) as pdf:
+                    for page in pdf.pages:
+                        text += page.extract_text() or ""
+            except Exception as e2:
+                logger.error(f"Both PDF extraction methods failed for {file_path}: {e2}")
+        
+        return text
+    
+    def _extract_text_from_docx(self, file_path: Path) -> str:
+        """
+        Extract text from a DOCX file.
+        
+        Args:
+            file_path: Path to the DOCX file
+            
+        Returns:
+            Extracted text
+        """
+        try:
+            doc = docx.Document(file_path)
+            full_text = []
+            
+            # Extract text from paragraphs
+            for para in doc.paragraphs:
+                full_text.append(para.text)
+            
+            # Extract text from tables
+            for table in doc.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        full_text.append(cell.text)
+            
+            return '\n'.join(full_text)
+        except Exception as e:
+            logger.error(f"DOCX extraction failed for {file_path}: {e}")
+            return ""
+    
+    def _extract_text_from_html(self, html_content: str) -> str:
+        """
+        Extract text from HTML content.
+        
+        Args:
+            html_content: HTML content as string
+            
+        Returns:
+            Extracted text
+        """
+        try:
+            soup = BeautifulSoup(html_content, 'html.parser')
+            
+            # Remove script and style elements
+            for script in soup(["script", "style"]):
+                script.extract()
+            
+            # Get text
+            text = soup.get_text()
+            
+            # Break into lines and remove leading and trailing space
+            lines = (line.strip() for line in text.splitlines())
+            
+            # Break multi-headlines into a line each
+            chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+            
+            # Remove blank lines
+            text = '\n'.join(chunk for chunk in chunks if chunk)
+            
+            return text
+        except Exception as e:
+            logger.error(f"HTML extraction failed: {e}")
+            return ""
     
     def identify_sections(self, text: str) -> List[Dict]:
         """
@@ -166,7 +291,7 @@ class DocumentProcessor:
         """
         processed_docs = []
         
-        for doc_idx, doc in enumerate(documents):
+        for doc_idx, doc in enumerate(tqdm(documents, desc="Processing documents")):
             text = doc["text"]
             
             # Identify sections
@@ -194,7 +319,7 @@ class DocumentProcessor:
                     }
                     processed_docs.append(chunk_doc)
         
-        print(f"Created {len(processed_docs)} document chunks")
+        logger.info(f"Created {len(processed_docs)} document chunks")
         self.document_store = processed_docs
         return processed_docs
     
@@ -210,11 +335,25 @@ class DocumentProcessor:
         """
         docs_to_embed = documents if documents is not None else self.document_store
         
+        if not docs_to_embed:
+            logger.warning("No documents to embed")
+            return np.array([])
+        
         texts = [doc["text"] for doc in docs_to_embed]
-        embeddings = self.embedding_model.encode(texts)
+        
+        # Process in batches to avoid memory issues with large document collections
+        batch_size = 32
+        embeddings_list = []
+        
+        for i in tqdm(range(0, len(texts), batch_size), desc="Creating embeddings"):
+            batch_texts = texts[i:i+batch_size]
+            batch_embeddings = self.embedding_model.encode(batch_texts)
+            embeddings_list.append(batch_embeddings)
+        
+        embeddings = np.vstack(embeddings_list) if embeddings_list else np.array([])
         
         self.document_embeddings = embeddings
-        print(f"Created embeddings with shape {embeddings.shape}")
+        logger.info(f"Created embeddings with shape {embeddings.shape}")
         return embeddings
     
     def build_index(self, embeddings: Optional[np.ndarray] = None) -> faiss.Index:
@@ -229,7 +368,7 @@ class DocumentProcessor:
         """
         embs = embeddings if embeddings is not None else self.document_embeddings
         
-        if embs is None:
+        if embs is None or len(embs) == 0:
             raise ValueError("No embeddings available. Call create_embeddings first.")
         
         # Get dimensions of the embeddings
@@ -242,7 +381,7 @@ class DocumentProcessor:
         index.add(embs.astype('float32'))
         
         self.index = index
-        print(f"Built index with {index.ntotal} vectors")
+        logger.info(f"Built index with {index.ntotal} vectors")
         return index
     
     def extract_keywords(self, text: str, max_keywords: int = 10) -> Set[str]:
@@ -286,7 +425,7 @@ class DocumentProcessor:
     
     def add_keywords_to_documents(self):
         """Add extracted keywords to document chunks."""
-        for i, doc in enumerate(self.document_store):
+        for i, doc in enumerate(tqdm(self.document_store, desc="Extracting keywords")):
             keywords = self.extract_keywords(doc["text"])
             self.document_store[i]["keywords"] = list(keywords)
     
@@ -330,7 +469,7 @@ class DocumentProcessor:
         if self.index is not None:
             faiss.write_index(self.index, str(save_dir / "faiss_index.bin"))
         
-        print(f"Saved processed data to {save_dir}")
+        logger.info(f"Saved processed data to {save_dir}")
     
     def load_processed_data(self, load_dir: Union[str, Path]):
         """
@@ -346,19 +485,19 @@ class DocumentProcessor:
         if docs_path.exists():
             docs_df = pd.read_json(docs_path)
             self.document_store = docs_df.to_dict(orient="records")
-            print(f"Loaded {len(self.document_store)} document chunks")
+            logger.info(f"Loaded {len(self.document_store)} document chunks")
         
         # Load embeddings
         embs_path = load_dir / "document_embeddings.npy"
         if embs_path.exists():
             self.document_embeddings = np.load(embs_path)
-            print(f"Loaded embeddings with shape {self.document_embeddings.shape}")
+            logger.info(f"Loaded embeddings with shape {self.document_embeddings.shape}")
         
         # Load FAISS index
         index_path = load_dir / "faiss_index.bin"
         if index_path.exists():
             self.index = faiss.read_index(str(index_path))
-            print(f"Loaded index with {self.index.ntotal} vectors")
+            logger.info(f"Loaded index with {self.index.ntotal} vectors")
 
 
 if __name__ == "__main__":
