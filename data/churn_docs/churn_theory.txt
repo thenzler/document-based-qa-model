@@ -1,0 +1,55 @@
+# Churn Prediction Theorie
+
+## Was ist Churn Prediction?
+
+Churn Prediction bezeichnet ein Machine Learning-Verfahren zur Vorhersage, welche Kunden mit hoher Wahrscheinlichkeit ein Unternehmen verlassen oder einen Dienst kündigen werden. Das Modell identifiziert Abwanderungsmuster in historischen Daten und wendet diese auf aktuelle Kundendaten an, um eine individuelle Kündigungswahrscheinlichkeit zu berechnen.
+
+## Bedeutung für Unternehmen
+
+In der heutigen wettbewerbsintensiven Geschäftswelt ist Kundenbindung ein entscheidender Erfolgsfaktor. Die Kosten für die Neukundengewinnung sind typischerweise 5-7 Mal höher als für die Bindung bestehender Kunden. Die frühzeitige Erkennung von Kündigungsrisiken ermöglicht proaktive Maßnahmen, bevor ein Kunde tatsächlich abwandert.
+
+## Verwendete Machine Learning Algorithmen
+
+Für Churn Prediction werden verschiedene Algorithmen eingesetzt:
+
+1. **Logistische Regression**:
+   Ein klassischer Algorithmus für binäre Klassifikation, der die Wahrscheinlichkeit einer Kündigung berechnet. Vorteile sind die hohe Interpretierbarkeit, geringe Trainingszeit und die direkte Ausgabe von Wahrscheinlichkeiten.
+
+2. **Random Forest**:
+   Ein Ensemble-Verfahren, das viele unabhängige Entscheidungsbäume kombiniert. Vorteile sind die Robustheit gegen Overfitting, die Fähigkeit, komplexe nicht-lineare Beziehungen zu erfassen und die Bereitstellung von Feature-Importance-Werten.
+
+3. **Gradient Boosting**:
+   Ein fortschrittlicher Ensemble-Ansatz mit sequentiellem Training von Modellen, wobei jedes neue Modell die Fehler der vorherigen korrigiert. Implementierungen wie XGBoost und LightGBM bieten höchste Vorhersagegenauigkeit und arbeiten effizient mit großen Datensätzen.
+
+## Feature Engineering für Churn Prediction
+
+Die Qualität eines Churn-Modells hängt maßgeblich von den verwendeten Features ab. Typische Feature-Kategorien sind:
+
+### Nutzungsmetriken
+- Frequenz: Wie oft nutzt der Kunde das Produkt?
+- Intensität: Wie intensiv ist die Nutzung (z.B. Transaktionsvolumen)?
+- Trend: Nimmt die Nutzung zu oder ab?
+
+### Kundenzufriedenheit
+- NPS-Scores und Feedback-Bewertungen
+- Anzahl und Art der Support-Anfragen
+- Reaktionszeit auf Kommunikation
+
+### Vertragliche Faktoren
+- Vertragslaufzeit und -dauer
+- Preis und Preisänderungen
+- Upgrades und Downgrades
+
+### Demografische Daten
+- Kundenalter und Geschlecht
+- Geografische Lage
+- Unternehmensgröße (bei B2B)
+
+## Evaluation des Modells
+
+Da Kündigungsdaten typischerweise unbalanciert sind (weniger Kündigungen als Bestandskunden), werden spezielle Evaluationsmetriken verwendet:
+
+- **ROC-AUC**: Misst die Fähigkeit des Modells, zwischen Kündigern und Nicht-Kündigern zu unterscheiden.
+- **Precision-Recall-Kurve**: Besonders geeignet für unbalancierte Datensätze.
+- **F1-Score**: Harmonisches Mittel aus Precision und Recall.
+- **Geschäftliche Metriken**: Kosten-Nutzen-Analyse basierend auf Interventionskosten und Kundenwert.

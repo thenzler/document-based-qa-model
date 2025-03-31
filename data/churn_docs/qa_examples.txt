@@ -1,0 +1,46 @@
+# Beispielfragen und Antworten für Churn Prediction
+
+## Frage 1: Was ist Churn Prediction?
+
+**Antwort:** Churn Prediction ist ein Machine Learning-Verfahren zur Vorhersage, welche Kunden mit hoher Wahrscheinlichkeit ein Unternehmen verlassen oder einen Dienst kündigen werden. Das Modell identifiziert Abwanderungsmuster in historischen Daten und wendet diese auf aktuelle Kundendaten an, um eine individuelle Kündigungswahrscheinlichkeit zu berechnen.
+
+## Frage 2: Welche Algorithmen werden typischerweise für Churn Prediction verwendet?
+
+**Antwort:** Für Churn Prediction werden typischerweise folgende Algorithmen verwendet:
+1. Logistische Regression: Bietet hohe Interpretierbarkeit und direkte Wahrscheinlichkeiten
+2. Random Forest: Robust gegen Overfitting und kann nicht-lineare Beziehungen erfassen
+3. Gradient Boosting (XGBoost, LightGBM): Bietet höchste Vorhersagegenauigkeit
+
+## Frage 3: Welche Features sind wichtig für ein Churn-Prediction-Modell?
+
+**Antwort:** Wichtige Feature-Kategorien für Churn Prediction sind:
+- Nutzungsmetriken: Frequenz, Intensität und Trends der Produktnutzung
+- Kundenzufriedenheit: NPS-Scores, Support-Anfragen, Feedback
+- Vertragliche Faktoren: Vertragslaufzeit, Preis, Upgrades/Downgrades
+- Demografische Daten: Kundenalter, geografische Lage, Unternehmensgröße (bei B2B)
+
+## Frage 4: Wie werden Churn-Prediction-Modelle evaluiert?
+
+**Antwort:** Da Kündigungsdaten typischerweise unbalanciert sind, werden folgende Metriken verwendet:
+- ROC-AUC: Misst die Fähigkeit, zwischen Kündigern und Nicht-Kündigern zu unterscheiden
+- Precision-Recall-Kurve: Besonders geeignet für unbalancierte Datensätze
+- F1-Score: Harmonisches Mittel aus Precision und Recall
+- Geschäftliche Metriken: Kosten-Nutzen-Analyse basierend auf Interventionskosten und Kundenwert
+
+## Frage 5: Wie können Unternehmen die Vorhersagen eines Churn-Modells nutzen?
+
+**Antwort:** Unternehmen können Churn-Vorhersagen nutzen durch:
+1. Segmentierte Interventionen nach Risikogruppen (hoch, mittel, niedrig)
+2. Personalisierte Angebote basierend auf den spezifischen Risikofaktoren
+3. Proaktive Kontaktaufnahme durch Customer Success Teams
+4. Gezielte Verbesserung von Produktfunktionen, die zur Kundenbindung beitragen
+5. Optimierte Ressourcenallokation für Kundenbindungsmaßnahmen
+
+## Frage 6: Welche Herausforderungen gibt es bei der Implementierung von Churn-Prediction?
+
+**Antwort:** Typische Herausforderungen sind:
+- Datensilos und Qualitätsprobleme bei der Integration verschiedener Datenquellen
+- Class Imbalance (wenige Kündigungen im Vergleich zu bleibenden Kunden)
+- Modell-Drift durch sich ändernde Kundenverhalten und Marktbedingungen
+- Organisatorische Widerstände bei der Implementierung neuer Prozesse
+- Ethische und Datenschutzbedenken bei der Verarbeitung von Kundendaten

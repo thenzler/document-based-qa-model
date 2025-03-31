@@ -1,0 +1,86 @@
+# Churn Prediction Use Case: SaaS-Unternehmen
+
+## Ausgangslage
+
+In unserem SaaS-Unternehmen, einem Anbieter von Cloud-basierter Buchhaltungssoftware, beobachten wir eine jährliche Kündigungsrate von durchschnittlich 12%. Diese Abwanderungen bedeuten nicht nur entgangene wiederkehrende Umsätze, sondern erfordern auch erhebliche Investitionen in die Neukundenakquisition.
+
+Gegenwärtig erfolgt die Kundenbindung hauptsächlich reaktiv: Erst wenn Kunden ihre Unzufriedenheit äußern oder bereits kündigen, werden Maßnahmen ergriffen. Unsere Supportmitarbeiter haben keine systematische Möglichkeit, Kündigungsrisiken frühzeitig zu erkennen.
+
+## Zielsetzung
+
+Mit einem ML-basierten Churn-Prediction-Modell sollen gefährdete Kunden frühzeitig erkannt werden. Konkrete Ziele sind:
+
+- Reduzierung der jährlichen Kündigungsrate um 20-30%
+- Erhöhung des Customer Lifetime Value um 15%
+- Effizienterer Einsatz der Ressourcen des Customer Success Teams
+- Gewinnung von Erkenntnissen über die Hauptgründe für Kündigungen
+
+## Datenbasis
+
+Für das Modell benötigen wir Daten aus verschiedenen Systemen:
+
+### CRM-System (Salesforce)
+- Kundendemografie und Firmendaten
+- Vertragsdetails (Laufzeit, Preis, Paket)
+- Interaktionshistorie mit Vertrieb und Support
+
+### Produktnutzungsdaten
+- Login-Häufigkeit und -Dauer
+- Nutzung spezifischer Features
+- Anzahl erstellter Dokumente/Transaktionen
+- Fehler und Fehlermeldungen
+
+### Zahlungssystem
+- Zahlungshistorie
+- Zahlungsverzögerungen
+- Rechnungsreklamationen
+
+### Kundenfeedback
+- NPS-Umfragen
+- Support-Tickets (Anzahl, Schweregrad, Lösungszeit)
+- In-App-Feedback
+
+## Implementierung
+
+Die Umsetzung erfolgt in mehreren Schritten:
+
+### 1. Risikobewertung
+- Wöchentliche automatisierte Berechnung des Kündigungsrisikos
+- Erstellung einer nach Risiko sortierten Kundenliste
+- Automatische Benachrichtigungen bei Hochrisiko-Kunden
+
+### 2. Segmentierter Interventionsprozess
+
+#### Hochrisiko-Kunden (>70%)
+- Sofortige Kontaktaufnahme durch Customer Success Manager
+- Individuelles Angebot (z.B. temporäre Rabatte, Premium-Support)
+- Tiefgehende Bedarfsanalyse und Lösungsvorschläge
+
+#### Mittleres Risiko (30-70%)
+- Proaktives Angebot von personalisierten Schulungen
+- Einladung zu Webinaren zu wenig genutzten Features
+- Gezielte E-Mail-Kampagnen mit Erfolgsgeschichten
+
+#### Niedriges Risiko (<30%)
+- Standardmäßige Kundenbetreuung
+- Regelmäßige Check-ins nach Zeitplan
+
+### 3. Maßnahmen nach Risikofaktoren
+- Geringe Nutzungsintensität → Personalisierte Schulungen
+- Support-Probleme → Dedizierter Support-Mitarbeiter
+- Preissensitivität → Individuelles Preismodell
+- Fehlende Schlüsselfeature-Nutzung → Gezielte Einführung
+
+## Erwarteter Nutzen
+
+### Quantitative Vorteile
+- Reduktion der Kündigungsrate um 25% (ca. 150 gerettete Kunden pro Jahr)
+- Steigerung des durchschnittlichen Kundenwerts um 15%
+- ROI von 350% im ersten Jahr
+- Reduktion der Kosten für Neukundenakquisition um 18%
+
+### Qualitative Vorteile
+- Verbesserte Kundenzufriedenheit durch proaktiven Support
+- Tieferes Verständnis der Kundenbedürfnisse und Kündigungsgründe
+- Datengetriebene Entscheidungsfindung im Customer Success Team
+- Gezieltere Produktentwicklung basierend auf identifizierten Schwachstellen
