@@ -3,179 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dokumentenbasiertes QA & Churn-Prediction</title>
+    <title>Dokument-basiertes QA-System</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <header class="bg-primary text-white py-3">
-        <div class="container">
-            <div class="d-flex align-items-center">
-                <i class="bi bi-book me-3 fs-2"></i>
-                <h1>Dokumentenbasiertes QA & Churn-Prediction</h1>
+    <div class="container mt-5">
+        <h1 class="mb-4">Dokument-basiertes QA-System</h1>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2 class="h5 mb-0">Frage stellen</h2>
             </div>
-        </div>
-    </header>
-
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a class="nav-link active" href="/"><i class="bi bi-house-door"></i> Home</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/qa"><i class="bi bi-question-circle"></i> Frage & Antwort</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/churn"><i class="bi bi-graph-up"></i> Churn-Prediction</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/documents"><i class="bi bi-file-text"></i> Dokumente</a>
-                    </li>
-                </ul>
-            </div>
-            <div class="status-indicator" id="status-indicator">
-                <div class="spinner-border spinner-border-sm text-light me-2 d-none" id="status-spinner" role="status"></div>
-                <span id="status-text">Initialisierung...</span>
-            </div>
-        </div>
-    </nav>
-
-    <main class="container my-4">
-        <div class="system-status p-3 mb-4 rounded" id="system-status-container">
-            <h4><i class="bi bi-info-circle"></i> System Status</h4>
-            <div class="row mt-3" id="system-components">
-                <div class="col-md-4">
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <h5 class="card-title"><i class="bi bi-search"></i> QA-System</h5>
-                            <p id="qa-status" class="status-text">Wird initialisiert...</p>
-                            <div class="progress">
-                                <div id="qa-progress" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <h5 class="card-title"><i class="bi bi-file-earmark-text"></i> Dokumente</h5>
-                            <p id="doc-status" class="status-text">Wird initialisiert...</p>
-                            <div class="progress">
-                                <div id="doc-progress" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <h5 class="card-title"><i class="bi bi-graph-up"></i> Churn-Modell</h5>
-                            <p id="model-status" class="status-text">Wird initialisiert...</p>
-                            <div class="progress">
-                                <div id="model-progress" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="mt-3 text-center d-none" id="initialize-controls">
-                <button id="initialize-btn" class="btn btn-primary">
-                    <i class="bi bi-play-fill"></i> System initialisieren
-                </button>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-md-6">
-                <div class="card mb-4">
-                    <div class="card-header bg-primary text-white">
-                        <h2 class="h5 mb-0"><i class="bi bi-question-circle"></i> Dokument-basierte Frage & Antwort</h2>
-                    </div>
-                    <div class="card-body">
-                        <p>Stellen Sie Fragen zu Churn-Prediction und erhalten Sie Antworten basierend auf relevanten Dokumenten mit Quellenangaben.</p>
-                        <div class="text-center mt-4">
-                            <a href="/qa" class="btn btn-primary">
-                                <i class="bi bi-chat-dots"></i> Zu Frage & Antwort
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card mb-4">
-                    <div class="card-header bg-success text-white">
-                        <h2 class="h5 mb-0"><i class="bi bi-graph-up"></i> Churn-Prediction</h2>
-                    </div>
-                    <div class="card-body">
-                        <p>Vorhersage von Kundenabwanderung mit Erklärungen und dokumentenbasierten Handlungsempfehlungen.</p>
-                        <div class="text-center mt-4">
-                            <a href="/churn" class="btn btn-success">
-                                <i class="bi bi-bar-chart"></i> Zu Churn-Prediction
-                            </a>
-                        </div>
-                    </div>
+            <div class="card-body">
+                <div class="input-group mb-3">
+                    <input type="text" id="question-input" class="form-control" placeholder="Stellen Sie eine Frage zu Churn Prediction...">
+                    <button class="btn btn-primary" id="ask-button">Frage stellen</button>
                 </div>
             </div>
         </div>
-
-        <div class="row">
-            <div class="col-md-6">
-                <div class="card mb-4">
-                    <div class="card-header bg-secondary text-white">
-                        <h2 class="h5 mb-0"><i class="bi bi-file-text"></i> Dokumentenverwaltung</h2>
-                    </div>
-                    <div class="card-body">
-                        <p>Verwalten Sie die Dokumente, die für die Beantwortung von Fragen und Churn-Prediction-Erklärungen verwendet werden.</p>
-                        <div class="text-center mt-4">
-                            <a href="/documents" class="btn btn-secondary">
-                                <i class="bi bi-folder2-open"></i> Zu Dokumenten
-                            </a>
-                        </div>
-                    </div>
-                </div>
+        
+        <div class="card d-none" id="result-card">
+            <div class="card-header">
+                <h2 class="h5 mb-0">Antwort</h2>
             </div>
-            <div class="col-md-6">
-                <div class="card mb-4" id="document-stats-card">
-                    <div class="card-header bg-info text-white">
-                        <h2 class="h5 mb-0"><i class="bi bi-clipboard-data"></i> Dokumenten-Statistiken</h2>
-                    </div>
-                    <div class="card-body">
-                        <div id="document-stats">
-                            <div class="text-center py-4">
-                                <div class="spinner-border text-primary" role="status">
-                                    <span class="visually-hidden">Wird geladen...</span>
-                                </div>
-                                <p class="mt-2">Dokumenten-Statistiken werden geladen...</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <div class="card-body">
+                <div id="answer-text"></div>
+                <hr>
+                <h3 class="h6">Quellen:</h3>
+                <div id="sources-list"></div>
             </div>
         </div>
-    </main>
-
-    <footer class="bg-dark text-white py-3 mt-auto">
-        <div class="container text-center">
-            <p class="mb-0">© 2025 Dokumentenbasiertes QA & Churn-Prediction System</p>
-        </div>
-    </footer>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    </div>
+    
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Initialize main page
-            checkSystemStatus();
-            
-            // Set up event listeners
-            document.getElementById('initialize-btn').addEventListener('click', initializeSystem);
+        document.getElementById('ask-button').addEventListener('click', askQuestion);
+        document.getElementById('question-input').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') askQuestion();
         });
+        
+        function askQuestion() {
+            const question = document.getElementById('question-input').value.trim();
+            if (!question) return;
+            
+            // Zeige Lade-Animation
+            document.getElementById('ask-button').disabled = true;
+            document.getElementById('ask-button').textContent = 'Lade...';
+            
+            // Sende Anfrage
+            fetch('/api/ask', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ question })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Zeige Antwort
+                document.getElementById('result-card').classList.remove('d-none');
+                
+                if (data.error) {
+                    document.getElementById('answer-text').innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+                    document.getElementById('sources-list').innerHTML = '';
+                } else {
+                    document.getElementById('answer-text').textContent = data.answer;
+                    
+                    // Zeige Quellen
+                    let sourcesHtml = '';
+                    if (data.sources && data.sources.length > 0) {
+                        sourcesHtml = '<ul>';
+                        data.sources.forEach((source, index) => {
+                            const filename = source.source.split('/').pop();
+                            sourcesHtml += `<li>${filename} (Relevanz: ${source.relevance_score.toFixed(2)})</li>`;
+                        });
+                        sourcesHtml += '</ul>';
+                    } else {
+                        sourcesHtml = '<p>Keine Quellen verfügbar.</p>';
+                    }
+                    document.getElementById('sources-list').innerHTML = sourcesHtml;
+                }
+            })
+            .catch(error => {
+                document.getElementById('result-card').classList.remove('d-none');
+                document.getElementById('answer-text').innerHTML = `<div class="alert alert-danger">Fehler bei der Anfrage: ${error.message}</div>`;
+            })
+            .finally(() => {
+                // Aktiviere Button wieder
+                document.getElementById('ask-button').disabled = false;
+                document.getElementById('ask-button').textContent = 'Frage stellen';
+            });
+        }
     </script>
 </body>
 </html>
