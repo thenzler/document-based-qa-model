@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 80" width="240" height="80">
+    <!-- SCODi Diamond Logo -->
+    <polygon points="25,40 40,25 55,40 40,55" fill="#007f78"/>
+    
+    <!-- 4P Text inside diamond -->
+    <text x="40" y="44" font-family="Arial" font-size="14" font-weight="bold" fill="white" text-anchor="middle">4P</text>
+    
+    <!-- SCODi Text -->
+    <text x="90" y="44" font-family="Arial" font-size="28" font-weight="bold" fill="#007f78">SCODi</text>
+    
+    <!-- 4P Text -->
+    <text x="165" y="44" font-family="Arial" font-size="28" font-weight="bold" fill="#4b5864">4P</text>
+</svg>
