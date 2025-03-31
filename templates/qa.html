@@ -3,162 +3,347 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Frage & Antwort | Dokumentenbasiertes QA</title>
+    <title>Frage & Antwort - Dokumentenbasiertes QA-System</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .source-card {
+            margin-bottom: 10px;
+            border-left: 3px solid #007bff;
+        }
+        .highlight {
+            background-color: #fff3cd;
+            padding: 2px;
+        }
+        .qa-container {
+            display: flex;
+            gap: 20px;
+        }
+        .qa-main {
+            flex: 3;
+        }
+        .qa-sidebar {
+            flex: 1;
+        }
+        @media (max-width: 768px) {
+            .qa-container {
+                flex-direction: column;
+            }
+        }
+        .question-card {
+            margin-bottom: 20px;
+        }
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #007bff;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .answer-footer {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+            border-top: 1px solid #dee2e6;
+            padding-top: 10px;
+        }
+        .answer-actions button {
+            margin-right: 5px;
+        }
+    </style>
 </head>
 <body>
-    <header class="bg-primary text-white py-3">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
-            <div class="d-flex align-items-center">
-                <i class="bi bi-book me-3 fs-2"></i>
-                <h1>Dokumentenbasiertes QA & Churn-Prediction</h1>
-            </div>
-        </div>
-    </header>
-
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
+            <a class="navbar-brand" href="/">Dokumentenbasiertes QA-System</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav">
                     <li class="nav-item">
-                        <a class="nav-link" href="/"><i class="bi bi-house-door"></i> Home</a>
+                        <a class="nav-link" href="/">Home</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link active" href="/qa"><i class="bi bi-question-circle"></i> Frage & Antwort</a>
+                        <a class="nav-link active" href="/qa">Frage & Antwort</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/churn"><i class="bi bi-graph-up"></i> Churn-Prediction</a>
+                        <a class="nav-link" href="/documents">Dokumente</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/documents"><i class="bi bi-file-text"></i> Dokumente</a>
+                        <a class="nav-link" href="/churn">Churn-Prediction</a>
                     </li>
                 </ul>
-            </div>
-            <div class="status-indicator" id="status-indicator">
-                <div class="spinner-border spinner-border-sm text-light me-2 d-none" id="status-spinner" role="status"></div>
-                <span id="status-text">Initialisierung...</span>
             </div>
         </div>
     </nav>
 
-    <main class="container my-4">
-        <div class="row mb-4">
-            <div class="col">
-                <div class="card">
-                    <div class="card-header bg-primary text-white">
-                        <h2 class="h4 mb-0"><i class="bi bi-question-circle"></i> Dokumentenbasierte Frage & Antwort</h2>
+    <div class="container mt-4">
+        <h1 class="mb-4">Frage & Antwort</h1>
+        
+        <div class="qa-container">
+            <div class="qa-main">
+                <div class="card question-card">
+                    <div class="card-header">
+                        <h2 class="h5 mb-0">Stellen Sie eine Frage zu Ihren Dokumenten</h2>
                     </div>
                     <div class="card-body">
-                        <p>Stellen Sie Fragen zu Churn-Prediction und erhalten Sie Antworten basierend auf relevanten Dokumenten. Das System analysiert die verfügbaren Dokumente und gibt neben der Antwort auch die Quellen an.</p>
-                        
-                        <div class="input-group mb-3">
-                            <input type="text" class="form-control" id="question-input" placeholder="Ihre Frage zu Churn-Prediction eingeben...">
-                            <button class="btn btn-primary" type="button" id="ask-button">
+                        <div class="mb-3">
+                            <textarea id="question-input" class="form-control" rows="3" 
+                                placeholder="Ihre Frage zu Churn-Prediction oder den hochgeladenen Dokumenten..."></textarea>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="use-generation" checked>
+                                    <label class="form-check-label" for="use-generation">KI-generierte Antwort</label>
+                                </div>
+                            </div>
+                            <button id="ask-button" class="btn btn-primary">
                                 <i class="bi bi-search"></i> Frage stellen
                             </button>
                         </div>
-                        
-                        <div class="form-text mb-3">Beispielfragen: "Was ist Churn Prediction?", "Welche Algorithmen werden für Churn Prediction verwendet?", "Wie kann man Kunden mit hohem Abwanderungsrisiko halten?"</div>
-                        
-                        <div class="question-history mb-4" id="question-history">
-                            <h5>Bisherige Fragen:</h5>
-                            <ul class="list-group" id="history-list">
-                                <!-- History items will be added here dynamically -->
-                            </ul>
-                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- Results section, hidden initially -->
-        <div class="row mb-4 d-none" id="results-container">
-            <div class="col">
-                <div class="card">
-                    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-                        <h3 class="h5 mb-0"><i class="bi bi-chat-left-text"></i> <span id="result-question">Frage</span></h3>
-                        <span class="badge bg-light text-dark" id="processing-time"></span>
+                
+                <div id="loading-indicator" class="text-center d-none">
+                    <div class="loader"></div>
+                    <p>Suche in Dokumenten und generiere Antwort...</p>
+                </div>
+                
+                <div id="result-card" class="card d-none">
+                    <div class="card-header">
+                        <h2 class="h5 mb-0">Antwort</h2>
                     </div>
                     <div class="card-body">
-                        <!-- Loading spinner, shown during processing -->
-                        <div id="answer-loading" class="text-center py-4">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Wird geladen...</span>
-                            </div>
-                            <p class="mt-2">Durchsuche Dokumente und generiere Antwort...</p>
+                        <div id="answer-text"></div>
+                        
+                        <div id="sources-section" class="mt-4">
+                            <h3 class="h6">Quellen:</h3>
+                            <div id="sources-list"></div>
                         </div>
                         
-                        <!-- Answer container, shown when results are available -->
-                        <div id="answer-container" class="d-none">
-                            <h4>Antwort:</h4>
-                            <div class="p-3 bg-light rounded mb-4" id="answer-text">
-                                <!-- Answer text will be inserted here -->
+                        <div class="answer-footer">
+                            <div>
+                                <span id="processing-time" class="text-muted small"></span>
                             </div>
-                            
-                            <div class="query-variations mb-4" id="query-variations-container">
-                                <h5>Abfragevariationen:</h5>
-                                <div class="d-flex flex-wrap" id="query-variations">
-                                    <!-- Query variations will be inserted here -->
-                                </div>
-                            </div>
-                            
-                            <h4>Quellen:</h4>
-                            <div class="sources-list" id="sources-list">
-                                <!-- Sources will be inserted here -->
+                            <div class="answer-actions">
+                                <button class="btn btn-sm btn-outline-primary" id="btn-helpful">
+                                    <i class="bi bi-hand-thumbs-up"></i> Hilfreich
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" id="btn-not-helpful">
+                                    <i class="bi bi-hand-thumbs-down"></i> Nicht hilfreich
+                                </button>
+                                <button class="btn btn-sm btn-outline-info" id="btn-share">
+                                    <i class="bi bi-share"></i> Teilen
+                                </button>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-        
-        <!-- Advanced options card -->
-        <div class="row">
-            <div class="col">
+            
+            <div class="qa-sidebar">
                 <div class="card">
-                    <div class="card-header bg-secondary text-white">
-                        <h3 class="h5 mb-0"><i class="bi bi-gear"></i> Erweiterte Optionen</h3>
+                    <div class="card-header">
+                        <h2 class="h5 mb-0">Kürzlich gestellte Fragen</h2>
                     </div>
                     <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-check form-switch mb-3">
-                                    <input class="form-check-input" type="checkbox" id="use-generation" checked>
-                                    <label class="form-check-label" for="use-generation">Antwortgenerierung aktivieren</label>
-                                    <div class="form-text">Wenn aktiviert, generiert das System eine verständliche Antwort. Wenn deaktiviert, extrahiert es nur relevante Passagen aus den Dokumenten.</div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="top-k" class="form-label">Anzahl der zu durchsuchenden Dokumente:</label>
-                                    <input type="range" class="form-range" min="1" max="10" value="5" id="top-k">
-                                    <div class="d-flex justify-content-between">
-                                        <span>1</span>
-                                        <span id="top-k-value">5</span>
-                                        <span>10</span>
-                                    </div>
-                                </div>
-                            </div>
+                        <ul class="list-group" id="recent-questions-list">
+                            {% if recent_questions %}
+                                {% for question in recent_questions %}
+                                    <li class="list-group-item list-group-item-action recent-question">{{ question }}</li>
+                                {% endfor %}
+                            {% else %}
+                                <li class="list-group-item text-muted">Keine kürzlichen Fragen</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h2 class="h5 mb-0">Einstellungen</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="show-sources" checked>
+                            <label class="form-check-label" for="show-sources">Quellen anzeigen</label>
+                        </div>
+                        <div class="mb-3">
+                            <label for="top-k-slider" class="form-label">Anzahl der Dokumente: <span id="top-k-value">5</span></label>
+                            <input type="range" class="form-range" min="1" max="10" step="1" value="5" id="top-k-slider">
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </main>
-
-    <footer class="bg-dark text-white py-3 mt-auto">
-        <div class="container text-center">
-            <p class="mb-0">© 2025 Dokumentenbasiertes QA & Churn-Prediction System</p>
-        </div>
-    </footer>
-
+    </div>
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/qa.js') }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const questionInput = document.getElementById('question-input');
+            const askButton = document.getElementById('ask-button');
+            const useGeneration = document.getElementById('use-generation');
+            const showSources = document.getElementById('show-sources');
+            const topKSlider = document.getElementById('top-k-slider');
+            const topKValue = document.getElementById('top-k-value');
+            const loadingIndicator = document.getElementById('loading-indicator');
+            const resultCard = document.getElementById('result-card');
+            const answerText = document.getElementById('answer-text');
+            const sourcesList = document.getElementById('sources-list');
+            const sourcesSection = document.getElementById('sources-section');
+            const processingTime = document.getElementById('processing-time');
+            const recentQuestionsList = document.getElementById('recent-questions-list');
+            
+            // Update top-k value display
+            topKSlider.addEventListener('input', function() {
+                topKValue.textContent = this.value;
+            });
+            
+            // Toggle sources visibility
+            showSources.addEventListener('change', function() {
+                sourcesSection.style.display = this.checked ? 'block' : 'none';
+            });
+            
+            // Handle recent question clicks
+            document.querySelectorAll('.recent-question').forEach(item => {
+                item.addEventListener('click', function() {
+                    questionInput.value = this.textContent;
+                    questionInput.focus();
+                });
+            });
+            
+            // Handle question submission
+            askButton.addEventListener('click', askQuestion);
+            questionInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    askQuestion();
+                }
+            });
+            
+            function askQuestion() {
+                const question = questionInput.value.trim();
+                if (!question) return;
+                
+                // Show loading, hide results
+                loadingIndicator.classList.remove('d-none');
+                resultCard.classList.add('d-none');
+                askButton.disabled = true;
+                
+                // Prepare request data
+                const requestData = {
+                    question: question,
+                    useGeneration: useGeneration.checked,
+                    topK: parseInt(topKSlider.value)
+                };
+                
+                // Send request
+                fetch('/api/qa/answer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Hide loading
+                    loadingIndicator.classList.add('d-none');
+                    resultCard.classList.remove('d-none');
+                    
+                    if (data.error) {
+                        // Show error
+                        answerText.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+                        sourcesList.innerHTML = '';
+                        processingTime.textContent = '';
+                    } else {
+                        // Show answer
+                        answerText.textContent = data.answer;
+                        
+                        // Show processing time
+                        processingTime.textContent = `Verarbeitungszeit: ${data.processingTime.toFixed(2)} Sekunden`;
+                        
+                        // Show sources
+                        if (data.sources && data.sources.length > 0) {
+                            let sourcesHtml = '';
+                            data.sources.forEach((source, index) => {
+                                const filename = source.filename || source.source.split('/').pop();
+                                const relevanceScore = source.relevanceScore || source.relevance_score || 0;
+                                const section = source.section || '';
+                                const sentences = source.matchingSentences || [];
+                                
+                                sourcesHtml += `
+                                    <div class="card source-card">
+                                        <div class="card-body py-2">
+                                            <h5 class="card-title h6">${filename}</h5>
+                                            ${section ? `<p class="card-subtitle mb-1 text-muted">Abschnitt: ${section}</p>` : ''}
+                                            <p class="card-text small mb-1">Relevanz: ${(relevanceScore * 100).toFixed(1)}%</p>
+                                            ${sentences.length > 0 ? 
+                                                `<p class="card-text small fst-italic">"${sentences[0]}"</p>` : ''}
+                                        </div>
+                                    </div>
+                                `;
+                            });
+                            sourcesList.innerHTML = sourcesHtml;
+                        } else {
+                            sourcesList.innerHTML = '<p class="text-muted">Keine Quellen verfügbar.</p>';
+                        }
+                        
+                        // Update recent questions list (this would normally come from the server)
+                        const newItem = document.createElement('li');
+                        newItem.className = 'list-group-item list-group-item-action recent-question';
+                        newItem.textContent = question;
+                        newItem.addEventListener('click', function() {
+                            questionInput.value = this.textContent;
+                            questionInput.focus();
+                        });
+                        
+                        if (recentQuestionsList.children.length > 0 && 
+                            recentQuestionsList.children[0].textContent === 'Keine kürzlichen Fragen') {
+                            recentQuestionsList.innerHTML = '';
+                        }
+                        
+                        recentQuestionsList.insertBefore(newItem, recentQuestionsList.firstChild);
+                        if (recentQuestionsList.children.length > 5) {
+                            recentQuestionsList.removeChild(recentQuestionsList.lastChild);
+                        }
+                    }
+                })
+                .catch(error => {
+                    // Handle errors
+                    loadingIndicator.classList.add('d-none');
+                    resultCard.classList.remove('d-none');
+                    answerText.innerHTML = `<div class="alert alert-danger">Fehler bei der Anfrage: ${error.message}</div>`;
+                    sourcesList.innerHTML = '';
+                    processingTime.textContent = '';
+                })
+                .finally(() => {
+                    // Re-enable button
+                    askButton.disabled = false;
+                });
+            }
+            
+            // Initialize helper buttons (these would be functionality stubs)
+            document.getElementById('btn-helpful').addEventListener('click', function() {
+                alert('Vielen Dank für Ihr Feedback!');
+            });
+            
+            document.getElementById('btn-not-helpful').addEventListener('click', function() {
+                alert('Vielen Dank für Ihr Feedback! Wie könnten wir die Antwort verbessern?');
+            });
+            
+            document.getElementById('btn-share').addEventListener('click', function() {
+                alert('Share-Funktion noch nicht implementiert.');
+            });
+        });
+    </script>
 </body>
 </html>
