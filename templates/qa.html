@@ -56,12 +56,29 @@
         .answer-actions button {
             margin-right: 5px;
         }
+        .llm-badge {
+            margin-left: 10px;
+            font-size: 0.8rem;
+        }
+        pre {
+            white-space: pre-wrap;       /* css-3 */
+            white-space: -moz-pre-wrap;  /* Mozilla, seit 1999 */
+            white-space: -pre-wrap;      /* Opera 4-6 */
+            white-space: -o-pre-wrap;    /* Opera 7 */
+            word-wrap: break-word;       /* Internet Explorer 5.5+ */
+        }
     </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
-            <a class="navbar-brand" href="/">Dokumentenbasiertes QA-System</a>
+            <a class="navbar-brand" href="/">Dokumentenbasiertes QA-System
+                {% if using_llm %}
+                <span class="badge bg-success llm-badge">LLM Aktiv</span>
+                {% else %}
+                <span class="badge bg-warning llm-badge">Standard-Modus</span>
+                {% endif %}
+            </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -85,7 +102,11 @@
     </nav>
 
     <div class="container mt-4">
-        <h1 class="mb-4">Frage & Antwort</h1>
+        <h1 class="mb-4">Frage & Antwort
+            {% if using_llm %}
+            <span class="badge bg-success">LLM-unterstützt</span>
+            {% endif %}
+        </h1>
         
         <div class="qa-container">
             <div class="qa-main">
@@ -114,7 +135,12 @@
                 
                 <div id="loading-indicator" class="text-center d-none">
                     <div class="loader"></div>
-                    <p>Suche in Dokumenten und generiere Antwort...</p>
+                    <p>Suche in Dokumenten und generiere Antwort
+                        {% if using_llm %}
+                        mit LLM
+                        {% endif %}
+                        ...
+                    </p>
                 </div>
                 
                 <div id="result-card" class="card d-none">
@@ -132,6 +158,7 @@
                         <div class="answer-footer">
                             <div>
                                 <span id="processing-time" class="text-muted small"></span>
+                                <span id="using-llm-info" class="text-muted small ms-2"></span>
                             </div>
                             <div class="answer-actions">
                                 <button class="btn btn-sm btn-outline-primary" id="btn-helpful">
@@ -180,6 +207,18 @@
                             <label for="top-k-slider" class="form-label">Anzahl der Dokumente: <span id="top-k-value">5</span></label>
                             <input type="range" class="form-range" min="1" max="10" step="1" value="5" id="top-k-slider">
                         </div>
+                        
+                        {% if using_llm %}
+                        <div class="alert alert-success">
+                            <i class="bi bi-info-circle-fill me-2"></i>
+                            LLM-unterstütztes QA-System ist aktiv. Die Antworten werden mit einem lokalen KI-Modell generiert.
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle-fill me-2"></i>
+                            Standard-QA-System ist aktiv. Die Antworten werden aus den indizierten Dokumenten extrahiert.
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -201,6 +240,7 @@
             const sourcesList = document.getElementById('sources-list');
             const sourcesSection = document.getElementById('sources-section');
             const processingTime = document.getElementById('processing-time');
+            const usingLlmInfo = document.getElementById('using-llm-info');
             const recentQuestionsList = document.getElementById('recent-questions-list');
             
             // Update top-k value display
@@ -278,13 +318,22 @@
                         answerText.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
                         sourcesList.innerHTML = '';
                         processingTime.textContent = '';
+                        usingLlmInfo.textContent = '';
                     } else {
-                        // Show answer
-                        answerText.textContent = data.answer;
+                        // Show answer with proper formatting
+                        // Konvertiere Zeilenumbrüche in <br> tags
+                        const formattedAnswer = data.answer.replace(/\n/g, '<br>');
+                        answerText.innerHTML = `<div>${formattedAnswer}</div>`;
                         
                         // Show processing time
                         if (data.processingTime) {
                             processingTime.textContent = `Verarbeitungszeit: ${data.processingTime.toFixed(2)} Sekunden`;
+                        }
+                        
+                        // Show LLM info
+                        if (data.using_llm !== undefined) {
+                            usingLlmInfo.textContent = data.using_llm ? 
+                                'Mit LLM generiert' : 'Mit Standardmodus generiert';
                         }
                         
                         // Show sources
@@ -341,6 +390,7 @@
                     answerText.innerHTML = `<div class="alert alert-danger">Fehler bei der Anfrage: ${error.message}</div>`;
                     sourcesList.innerHTML = '';
                     processingTime.textContent = '';
+                    usingLlmInfo.textContent = '';
                 })
                 .finally(() => {
                     // Re-enable button
