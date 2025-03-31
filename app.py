@@ -33,8 +33,27 @@ except ImportError as e:
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = Path('data/uploads')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB maximale Dateigröße
-app.config['DOCS_FOLDER'] = Path('data/churn_docs')
-app.config['ALLOWED_EXTENSIONS'] = {'txt', 'pdf', 'docx', 'md', 'html'}
+app.config['DOCS_FOLDER'] = Path('data/documents')
+app.config['ALLOWED_EXTENSIONS'] = {'txt', 'pdf', 'docx', 'md', 'html', 'xlsx', 'xml'}
+
+# SCODi 4P Design-Konfiguration
+SCODI_DESIGN = {
+    # Hauptfarbpalette
+    "colors": {
+        "primary": "#007f78",       # Primärfarbe (Dunkelgrün/Türkis aus SCODi Logo)
+        "secondary": "#4b5864",     # Sekundärfarbe (Dunkelgrau aus der Navigationsleiste)
+        "accent": "#f7f7f7",        # Akzentfarbe (Hellgrau für Hintergründe)
+        "success": "#32a852",       # Erfolgsfarbe (Grün)
+        "warning": "#ffc107",       # Warnfarbe (Gelb)
+        "error": "#dc3545",         # Fehlerfarbe (Rot)
+        "info": "#17a2b8",          # Infofarbe (Blau)
+    },
+    # Seiten-Konfiguration
+    "show_process_menu": True,      # Zeigt den Prozess-Menüpunkt in der Navigation
+    "company_name": "SCODi Software AG",
+    "app_version": "1.0",
+    "current_year": datetime.now().year
+}
 
 # Globale Variablen
 qa_system = None
@@ -79,14 +98,21 @@ def init_system():
     if churn_model is None:
         churn_model = ChurnModel()
 
-# Hauptrouten
+# Hauptrouten mit SCODi 4P Design
 @app.route('/')
 def index():
-    return render_template('index.html', using_llm=is_using_llm)
+    return render_template('index.html', 
+                          using_llm=is_using_llm, 
+                          design=SCODI_DESIGN,
+                          page_title="SCODi 4P - Dokumentenbasiertes QA")
 
 @app.route('/qa')
 def qa_page():
-    return render_template('qa.html', recent_questions=recent_questions[-5:], using_llm=is_using_llm)
+    return render_template('qa.html', 
+                          recent_questions=recent_questions[-5:], 
+                          using_llm=is_using_llm,
+                          design=SCODI_DESIGN,
+                          page_title="SCODi 4P - Frage & Antwort")
 
 @app.route('/documents')
 def documents_page():
@@ -96,11 +122,18 @@ def documents_page():
     if doc_processor and app.config['DOCS_FOLDER'].exists():
         docs = doc_processor.list_documents(str(app.config['DOCS_FOLDER']))
     
-    return render_template('documents.html', documents=docs, using_llm=is_using_llm)
+    return render_template('documents.html', 
+                          documents=docs, 
+                          using_llm=is_using_llm,
+                          design=SCODI_DESIGN,
+                          page_title="SCODi 4P - Dokumentenmanagement")
 
 @app.route('/churn')
 def churn_page():
-    return render_template('churn.html', using_llm=is_using_llm)
+    return render_template('churn.html', 
+                          using_llm=is_using_llm,
+                          design=SCODI_DESIGN,
+                          page_title="SCODi 4P - Churn-Prediction")
 
 # API-Endpunkte
 @app.route('/api/ask', methods=['POST'])
@@ -307,7 +340,9 @@ def system_status():
     return jsonify({
         "using_llm": is_using_llm,
         "documents_loaded": len(qa_system.documents) if qa_system else 0,
-        "initialized": qa_system is not None
+        "initialized": qa_system is not None,
+        "scodi_version": "4P",
+        "design_theme": "scodi-4p"
     })
 
 if __name__ == '__main__':
@@ -315,5 +350,6 @@ if __name__ == '__main__':
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     os.makedirs(app.config['DOCS_FOLDER'], exist_ok=True)
     
+    print(f"SCODi 4P QA-System gestartet")
     print(f"LLM-Unterstützung: {'Aktiviert' if is_using_llm else 'Deaktiviert'}")
     app.run(debug=True)
