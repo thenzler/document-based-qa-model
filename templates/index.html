@@ -3,96 +3,280 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dokument-basiertes QA-System</title>
+    <title>Dokumentenbasiertes QA-System</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        .feature-card {
+            height: 100%;
+            transition: transform 0.2s;
+        }
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: #0d6efd;
+        }
+        .hero-section {
+            background: linear-gradient(135deg, #4a89dc, #5e72e4);
+            color: white;
+            padding: 4rem 0;
+            margin-bottom: 3rem;
+        }
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #0d6efd;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+            display: none;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body>
-    <div class="container mt-5">
-        <h1 class="mb-4">Dokument-basiertes QA-System</h1>
-        
-        <div class="card mb-4">
-            <div class="card-header">
-                <h2 class="h5 mb-0">Frage stellen</h2>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">Dokumentenbasiertes QA-System</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/qa">Frage & Antwort</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/documents">Dokumente</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/churn">Churn-Prediction</a>
+                    </li>
+                </ul>
             </div>
-            <div class="card-body">
-                <div class="input-group mb-3">
-                    <input type="text" id="question-input" class="form-control" placeholder="Stellen Sie eine Frage zu Churn Prediction...">
-                    <button class="btn btn-primary" id="ask-button">Frage stellen</button>
+        </div>
+    </nav>
+
+    <div class="hero-section">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-7">
+                    <h1 class="display-4 fw-bold mb-3">Dokumentenbasiertes Frage-Antwort-System</h1>
+                    <p class="lead mb-4">Stellen Sie Fragen zu Ihren Dokumenten und erhalten Sie präzise Antworten mit Quellenangaben. Ideal für Churn-Prediction und Kundenanalysen.</p>
+                    <div class="d-flex gap-3">
+                        <a href="/qa" class="btn btn-light btn-lg">Fragen stellen</a>
+                        <a href="/documents" class="btn btn-outline-light btn-lg">Dokumente verwalten</a>
+                    </div>
+                </div>
+                <div class="col-lg-5 d-flex justify-content-center">
+                    <div class="p-5 text-center">
+                        <i class="bi bi-files display-1"></i>
+                    </div>
                 </div>
             </div>
         </div>
-        
-        <div class="card d-none" id="result-card">
-            <div class="card-header">
-                <h2 class="h5 mb-0">Antwort</h2>
+    </div>
+
+    <div class="container mb-5">
+        <div class="row mb-5">
+            <div class="col-12 text-center">
+                <h2 class="mb-4">Funktionen</h2>
+                <p class="lead">Unser dokumentenbasiertes QA-System bietet verschiedene Möglichkeiten, Ihre Dokumente zu nutzen.</p>
             </div>
-            <div class="card-body">
-                <div id="answer-text"></div>
-                <hr>
-                <h3 class="h6">Quellen:</h3>
-                <div id="sources-list"></div>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-md-6 col-lg-4">
+                <div class="card feature-card">
+                    <div class="card-body text-center p-4">
+                        <i class="bi bi-question-circle feature-icon"></i>
+                        <h3 class="h4 mb-3">Frage & Antwort</h3>
+                        <p>Stellen Sie Fragen zu Ihren Dokumenten und erhalten Sie präzise Antworten mit Quellenangaben.</p>
+                        <a href="/qa" class="btn btn-primary mt-3">Jetzt ausprobieren</a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6 col-lg-4">
+                <div class="card feature-card">
+                    <div class="card-body text-center p-4">
+                        <i class="bi bi-file-earmark-text feature-icon"></i>
+                        <h3 class="h4 mb-3">Dokumentenverwaltung</h3>
+                        <p>Laden Sie Dokumente hoch, organisieren Sie sie in Kategorien und verarbeiten Sie sie für optimale Ergebnisse.</p>
+                        <a href="/documents" class="btn btn-primary mt-3">Dokumente verwalten</a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6 col-lg-4">
+                <div class="card feature-card">
+                    <div class="card-body text-center p-4">
+                        <i class="bi bi-graph-up feature-icon"></i>
+                        <h3 class="h4 mb-3">Churn-Prediction</h3>
+                        <p>Analysieren Sie Kundendaten, identifizieren Sie Abwanderungsrisiken und erhalten Sie Handlungsempfehlungen.</p>
+                        <a href="/churn" class="btn btn-primary mt-3">Analysen starten</a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
     
-    <script>
-        document.getElementById('ask-button').addEventListener('click', askQuestion);
-        document.getElementById('question-input').addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') askQuestion();
-        });
+    <div class="bg-light py-5">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-6 order-lg-2 mb-4 mb-lg-0">
+                    <img src="https://via.placeholder.com/600x400" class="img-fluid rounded shadow" alt="Systeminitialisierung">
+                </div>
+                <div class="col-lg-6 order-lg-1">
+                    <h2 class="mb-4">System starten</h2>
+                    <p class="lead">Bevor Sie beginnen, initialisieren Sie das System, um die Dokumente zu verarbeiten und die Modelle zu laden.</p>
+                    <button id="btn-initialize" class="btn btn-primary btn-lg mt-3">
+                        <span id="btn-text">System initialisieren</span>
+                        <div id="init-loader" class="loader"></div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container my-5">
+        <div class="row mb-4">
+            <div class="col-12 text-center">
+                <h2>Schnelleinstieg</h2>
+                <p class="lead">Folgen Sie diesen Schritten, um mit dem System zu beginnen:</p>
+            </div>
+        </div>
         
-        function askQuestion() {
-            const question = document.getElementById('question-input').value.trim();
-            if (!question) return;
+        <div class="row g-4">
+            <div class="col-md-6 col-lg-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">1</div>
+                            <h4 class="ms-3 mb-0">Initialisieren</h4>
+                        </div>
+                        <p>Starten Sie das System, um Dokumente zu verarbeiten und Modelle zu laden.</p>
+                    </div>
+                </div>
+            </div>
             
-            // Zeige Lade-Animation
-            document.getElementById('ask-button').disabled = true;
-            document.getElementById('ask-button').textContent = 'Lade...';
+            <div class="col-md-6 col-lg-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">2</div>
+                            <h4 class="ms-3 mb-0">Dokumente</h4>
+                        </div>
+                        <p>Laden Sie Ihre Dokumente in den unterstützten Formaten hoch (PDF, DOCX, TXT, MD, HTML).</p>
+                    </div>
+                </div>
+            </div>
             
-            // Sende Anfrage
-            fetch('/api/ask', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ question })
-            })
-            .then(response => response.json())
-            .then(data => {
-                // Zeige Antwort
-                document.getElementById('result-card').classList.remove('d-none');
+            <div class="col-md-6 col-lg-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">3</div>
+                            <h4 class="ms-3 mb-0">Fragen</h4>
+                        </div>
+                        <p>Stellen Sie Fragen zu Ihren Dokumenten oder nutzen Sie die Churn-Prediction.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6 col-lg-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">4</div>
+                            <h4 class="ms-3 mb-0">Analysieren</h4>
+                        </div>
+                        <p>Arbeiten Sie mit den Antworten und Empfehlungen, um bessere Entscheidungen zu treffen.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <footer class="bg-dark text-white py-4 mt-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Dokumentenbasiertes QA-System</h5>
+                    <p>Ein Machine Learning Modell für dokumentenbasierte Frage-Antwort-Systeme mit Churn-Prediction als Anwendungsbeispiel</p>
+                </div>
+                <div class="col-md-3">
+                    <h5>Links</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="/" class="text-white">Home</a></li>
+                        <li><a href="/qa" class="text-white">Frage & Antwort</a></li>
+                        <li><a href="/documents" class="text-white">Dokumente</a></li>
+                        <li><a href="/churn" class="text-white">Churn-Prediction</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-3">
+                    <h5>Über</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="https://github.com/thenzler/document-based-qa-model" class="text-white">GitHub Repository</a></li>
+                    </ul>
+                </div>
+            </div>
+            <hr>
+            <div class="text-center">
+                <p>© 2025 Dokumentenbasiertes QA-System</p>
+            </div>
+        </div>
+    </footer>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const btnInitialize = document.getElementById('btn-initialize');
+            const btnText = document.getElementById('btn-text');
+            const initLoader = document.getElementById('init-loader');
+            
+            btnInitialize.addEventListener('click', function() {
+                // Zeige Ladeanimation
+                btnText.textContent = 'Initialisiere...';
+                initLoader.style.display = 'block';
+                btnInitialize.disabled = true;
                 
-                if (data.error) {
-                    document.getElementById('answer-text').innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
-                    document.getElementById('sources-list').innerHTML = '';
-                } else {
-                    document.getElementById('answer-text').textContent = data.answer;
-                    
-                    // Zeige Quellen
-                    let sourcesHtml = '';
-                    if (data.sources && data.sources.length > 0) {
-                        sourcesHtml = '<ul>';
-                        data.sources.forEach((source, index) => {
-                            const filename = source.source.split('/').pop();
-                            sourcesHtml += `<li>${filename} (Relevanz: ${source.relevance_score.toFixed(2)})</li>`;
-                        });
-                        sourcesHtml += '</ul>';
-                    } else {
-                        sourcesHtml = '<p>Keine Quellen verfügbar.</p>';
+                // Sende Anfrage zur Initialisierung
+                fetch('/api/init', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
                     }
-                    document.getElementById('sources-list').innerHTML = sourcesHtml;
-                }
-            })
-            .catch(error => {
-                document.getElementById('result-card').classList.remove('d-none');
-                document.getElementById('answer-text').innerHTML = `<div class="alert alert-danger">Fehler bei der Anfrage: ${error.message}</div>`;
-            })
-            .finally(() => {
-                // Aktiviere Button wieder
-                document.getElementById('ask-button').disabled = false;
-                document.getElementById('ask-button').textContent = 'Frage stellen';
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert('Fehler bei der Initialisierung: ' + data.error);
+                    } else {
+                        alert('System erfolgreich initialisiert!');
+                        btnText.textContent = 'System initialisiert';
+                    }
+                })
+                .catch(error => {
+                    alert('Fehler bei der Initialisierung: ' + error.message);
+                })
+                .finally(() => {
+                    initLoader.style.display = 'none';
+                    btnInitialize.disabled = false;
+                });
             });
-        }
+        });
     </script>
 </body>
 </html>
