@@ -149,6 +149,11 @@ body {
   gap: var(--spacing-lg);
 }
 
+.main-qa-area {
+  display: flex;
+  flex-direction: column;
+}
+
 .question-card {
   margin-bottom: var(--spacing-lg);
 }
@@ -157,7 +162,8 @@ body {
   margin-bottom: var(--spacing-lg);
 }
 
-.sources-section, .explanation-section {
+.sources-section, 
+.explanation-section {
   margin-top: var(--spacing-lg);
   padding: var(--spacing-md);
   background-color: #f8f9fa;
@@ -171,6 +177,31 @@ body {
   margin-top: var(--spacing-lg);
   padding-top: var(--spacing-md);
   border-top: 1px solid var(--border-color);
+}
+
+/* Verbesserte QA-Komponenten */
+.qa-sidebar {
+  height: fit-content;
+  position: sticky;
+  top: 90px;
+}
+
+.qa-interface .MuiListItem-button:hover {
+  background-color: rgba(52, 152, 219, 0.1);
+}
+
+.qa-interface .MuiListItem-button {
+  border-radius: var(--border-radius);
+  transition: all 0.2s;
+}
+
+.qa-interface .sources-section .MuiPaper-root {
+  transition: all 0.2s;
+}
+
+.qa-interface .sources-section .MuiPaper-root:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 /* Conversation View */
@@ -234,19 +265,6 @@ body {
   display: flex;
   gap: var(--spacing-md);
   padding: var(--spacing-md);
-}
-
-/* Churn Prediction */
-.churn-prediction {
-  margin-top: var(--spacing-xl);
-}
-
-.prediction-visualization {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-xl);
-  margin: var(--spacing-xl) 0;
 }
 
 /* Responsive Design */
