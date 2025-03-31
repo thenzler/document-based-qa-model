@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title|default('SCODi 4P - Dokumentenbasiertes QA') }}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    
+    <!-- SCODi 4P CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/scodi-4p.css') }}">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+    
+    {% block head_extra %}{% endblock %}
+</head>
+<body class="scodi-4p">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <div class="scodi-logo">
+                    <svg width="40" height="40" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M50 0 L100 50 L50 100 L0 50 Z" fill="#007f78"/>
+                        <text x="50" y="60" font-size="40" text-anchor="middle" fill="white">4P</text>
+                    </svg>
+                    <div class="scodi-logo-text">
+                        <span class="logo-primary">SCODi</span> <span class="logo-secondary">4P</span>
+                    </div>
+                </div>
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ml-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">
+                            <i class="fas fa-home mr-1"></i> Übersicht
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/qa' %}active{% endif %}" href="/qa">
+                            <i class="fas fa-question-circle mr-1"></i> Frage & Antwort
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/documents' %}active{% endif %}" href="/documents">
+                            <i class="fas fa-file-alt mr-1"></i> Dokumente
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/churn' %}active{% endif %}" href="/churn">
+                            <i class="fas fa-chart-line mr-1"></i> Churn-Prediction
+                        </a>
+                    </li>
+                    {% if design.show_process_menu|default(false) %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/processes' %}active{% endif %}" href="/processes">
+                            <i class="fas fa-project-diagram mr-1"></i> Prozesse
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container page-content">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <svg width="32" height="32" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M50 0 L100 50 L50 100 L0 50 Z" fill="#ffffff"/>
+                        <text x="50" y="60" font-size="40" text-anchor="middle" fill="#007f78">4P</text>
+                    </svg>
+                    <span>SCODi 4P</span>
+                </div>
+                <div class="footer-nav">
+                    <a href="/" class="footer-nav-item">Übersicht</a>
+                    <a href="/qa" class="footer-nav-item">Frage & Antwort</a>
+                    <a href="/documents" class="footer-nav-item">Dokumente</a>
+                    <a href="/churn" class="footer-nav-item">Churn-Prediction</a>
+                    {% if design.show_process_menu|default(false) %}
+                    <a href="/processes" class="footer-nav-item">Prozesse</a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="footer-copyright">
+                &copy; <span class="copyright-year">2025</span> SCODi Software AG. Alle Rechte vorbehalten.
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS and dependencies -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    
+    <!-- SCODi 4P JS -->
+    <script src="{{ url_for('static', filename='js/scodi-4p.js') }}"></script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>
