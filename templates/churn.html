@@ -3,269 +3,683 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Churn-Prediction | Dokumentenbasiertes QA</title>
+    <title>Churn-Prediction - Dokumentenbasiertes QA-System</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        .risk-badge {
+            padding: 8px 12px;
+            border-radius: 30px;
+            display: inline-block;
+            margin-right: 10px;
+            font-weight: 500;
+            font-size: 0.85rem;
+        }
+        .risk-niedrig {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        .risk-mittel {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        .risk-hoch {
+            background-color: #fee2e2;
+            color: #b91c1c;
+        }
+        .risk-sehr-hoch {
+            background-color: #ef4444;
+            color: white;
+        }
+        .customer-card {
+            transition: transform 0.2s;
+        }
+        .customer-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .action-item {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .action-item:last-child {
+            border-bottom: none;
+        }
+        .customer-details {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .detail-row {
+            border-top: 1px solid #dee2e6;
+            padding-top: 1rem;
+            margin-top: 1rem;
+        }
+        .chart-container {
+            height: 300px;
+        }
+        .upload-area {
+            border: 2px dashed #dee2e6;
+            border-radius: 5px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .upload-area:hover {
+            background-color: #f8f9fa;
+        }
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #007bff;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body>
-    <header class="bg-primary text-white py-3">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
-            <div class="d-flex align-items-center">
-                <i class="bi bi-book me-3 fs-2"></i>
-                <h1>Dokumentenbasiertes QA & Churn-Prediction</h1>
-            </div>
-        </div>
-    </header>
-
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
+            <a class="navbar-brand" href="/">Dokumentenbasiertes QA-System</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav">
                     <li class="nav-item">
-                        <a class="nav-link" href="/"><i class="bi bi-house-door"></i> Home</a>
+                        <a class="nav-link" href="/">Home</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/qa"><i class="bi bi-question-circle"></i> Frage & Antwort</a>
+                        <a class="nav-link" href="/qa">Frage & Antwort</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link active" href="/churn"><i class="bi bi-graph-up"></i> Churn-Prediction</a>
+                        <a class="nav-link" href="/documents">Dokumente</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/documents"><i class="bi bi-file-text"></i> Dokumente</a>
+                        <a class="nav-link active" href="/churn">Churn-Prediction</a>
                     </li>
                 </ul>
-            </div>
-            <div class="status-indicator" id="status-indicator">
-                <div class="spinner-border spinner-border-sm text-light me-2 d-none" id="status-spinner" role="status"></div>
-                <span id="status-text">Initialisierung...</span>
             </div>
         </div>
     </nav>
 
-    <main class="container my-4">
+    <div class="container mt-4">
+        <h1 class="mb-4">Churn-Prediction</h1>
+        
         <div class="row mb-4">
-            <div class="col">
+            <div class="col-lg-12">
                 <div class="card">
-                    <div class="card-header bg-success text-white">
-                        <h2 class="h4 mb-0"><i class="bi bi-graph-up"></i> Churn-Prediction mit Dokumentreferenzen</h2>
+                    <div class="card-header">
+                        <h2 class="h5 mb-0">Kundendaten analysieren</h2>
                     </div>
                     <div class="card-body">
-                        <p>Analysieren Sie Kundendaten und identifizieren Sie Abwanderungsrisiken. Das System berechnet die Abwanderungswahrscheinlichkeit und liefert dokumentenbasierte Handlungsempfehlungen.</p>
-                        
-                        <div class="row mb-4">
+                        <div class="row">
                             <div class="col-md-6">
-                                <div class="card">
-                                    <div class="card-header bg-light">
-                                        <h3 class="h5 mb-0">1. Daten auswählen</h3>
+                                <div class="mb-3">
+                                    <h6>Datenquelle auswählen</h6>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="radio" name="dataSource" id="exampleData" value="example" checked>
+                                        <label class="form-check-label" for="exampleData">
+                                            Beispieldaten verwenden
+                                        </label>
                                     </div>
-                                    <div class="card-body">
-                                        <div class="mb-3">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="radio" name="data-source" id="sample-data" checked>
-                                                <label class="form-check-label" for="sample-data">
-                                                    Beispieldaten verwenden
-                                                </label>
-                                            </div>
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="radio" name="data-source" id="custom-data">
-                                                <label class="form-check-label" for="custom-data">
-                                                    Eigene Daten hochladen
-                                                </label>
-                                            </div>
-                                        </div>
-                                        
-                                        <div id="upload-container" class="d-none">
-                                            <div class="input-group mb-3">
-                                                <input type="file" class="form-control" id="csv-upload" accept=".csv">
-                                                <button class="btn btn-outline-secondary" type="button" id="upload-btn">
-                                                    <i class="bi bi-upload"></i> Hochladen
-                                                </button>
-                                            </div>
-                                            <div class="form-text mb-3">CSV-Datei mit Kundendaten (enthält: customer_id, alter, vertragsdauer, nutzungsfrequenz, etc.)</div>
-                                        </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="dataSource" id="uploadData" value="upload">
+                                        <label class="form-check-label" for="uploadData">
+                                            Eigene Daten hochladen
+                                        </label>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="card">
-                                    <div class="card-header bg-light">
-                                        <h3 class="h5 mb-0">2. Vorhersage durchführen</h3>
-                                    </div>
-                                    <div class="card-body">
-                                        <p>Starten Sie die Analyse, um die Churn-Wahrscheinlichkeit für die Kunden zu berechnen.</p>
-                                        <button class="btn btn-success w-100" id="predict-btn">
-                                            <i class="bi bi-play-fill"></i> Churn-Vorhersage starten
-                                        </button>
-                                    </div>
+                            <div class="col-md-6" id="upload-section" style="display: none;">
+                                <div class="upload-area" id="upload-area">
+                                    <i class="bi bi-cloud-upload fs-3"></i>
+                                    <p class="mb-0">CSV-Datei hierher ziehen oder klicken zum Auswählen</p>
+                                    <small class="text-muted">Format: Kundendaten mit Nutzungsstatistiken</small>
+                                </div>
+                                <input type="file" id="file-input" accept=".csv" class="d-none">
+                                <div id="selected-file" class="mt-2 d-none">
+                                    <span class="badge bg-info text-dark"><i class="bi bi-file-earmark-text me-1"></i> <span id="file-name"></span></span>
+                                    <button type="button" id="remove-file" class="btn btn-sm btn-outline-danger ms-2">Entfernen</button>
                                 </div>
                             </div>
                         </div>
                         
-                        <!-- Data preview table -->
-                        <div id="data-preview-container" class="mb-4">
-                            <h3 class="h5 mb-3">Datenvorschau:</h3>
-                            <div class="table-responsive">
-                                <table class="table table-sm table-bordered table-hover">
-                                    <thead id="data-preview-header">
-                                        <!-- Table header will be populated dynamically -->
-                                    </thead>
-                                    <tbody id="data-preview-body">
-                                        <!-- Table body will be populated dynamically -->
-                                    </tbody>
-                                </table>
-                            </div>
+                        <div class="mt-3 d-flex justify-content-end">
+                            <button id="btn-predict" class="btn btn-primary">
+                                <i class="bi bi-graph-up"></i> Churn-Vorhersage starten
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Results section, initially hidden -->
-        <div class="row mb-4 d-none" id="results-container">
-            <div class="col">
-                <div class="card">
-                    <div class="card-header bg-primary text-white">
-                        <h3 class="h5 mb-0"><i class="bi bi-bar-chart"></i> Churn-Vorhersageergebnisse</h3>
-                    </div>
-                    <div class="card-body">
-                        <!-- Loading spinner, shown during processing -->
-                        <div id="prediction-loading" class="text-center py-4">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Wird geladen...</span>
-                            </div>
-                            <p class="mt-2">Analysiere Kundendaten und berechne Abwanderungsrisiko...</p>
-                        </div>
-                        
-                        <!-- Results summary -->
-                        <div id="results-summary" class="mb-4 d-none">
-                            <div class="row text-center">
-                                <div class="col-md-4">
-                                    <div class="card bg-danger text-white mb-3">
-                                        <div class="card-body">
-                                            <h5 class="card-title">Hohes Risiko</h5>
-                                            <p class="display-4" id="high-risk-count">0</p>
-                                            <p class="mb-0">Kunden</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="card bg-warning text-dark mb-3">
-                                        <div class="card-body">
-                                            <h5 class="card-title">Mittleres Risiko</h5>
-                                            <p class="display-4" id="medium-risk-count">0</p>
-                                            <p class="mb-0">Kunden</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="card bg-success text-white mb-3">
-                                        <div class="card-body">
-                                            <h5 class="card-title">Niedriges Risiko</h5>
-                                            <p class="display-4" id="low-risk-count">0</p>
-                                            <p class="mb-0">Kunden</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Detailed results -->
-                        <div id="detailed-results" class="d-none">
-                            <h3 class="h5 mb-3">Detaillierte Ergebnisse:</h3>
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th>Kunden-ID</th>
-                                            <th>Risikokategorie</th>
-                                            <th>Abwanderungswahrsch.</th>
-                                            <th>Risikofaktoren</th>
-                                            <th>Maßnahmen</th>
-                                            <th>Details</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="results-table-body">
-                                        <!-- Results will be populated dynamically -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div id="loading-results" class="text-center my-5 d-none">
+            <div class="loader"></div>
+            <p class="mt-3">Analyse wird durchgeführt...</p>
         </div>
         
-        <!-- Customer details modal -->
-        <div class="modal fade" id="customer-details-modal" tabindex="-1" aria-labelledby="customerDetailsModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="customerDetailsModalLabel">Kundendetails</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <h6>Kundeninformationen</h6>
-                                <div id="customer-info">
-                                    <!-- Customer info will be populated dynamically -->
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <h6>Abwanderungsrisiko</h6>
-                                <div class="progress mb-3">
-                                    <div id="customer-risk-bar" class="progress-bar" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-                                </div>
-                                <div id="risk-details">
-                                    <!-- Risk details will be populated dynamically -->
-                                </div>
-                            </div>
+        <div id="prediction-results" class="d-none">
+            <div class="row mb-4">
+                <div class="col-lg-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="h5 mb-0">Zusammenfassung</h2>
                         </div>
-                        
-                        <hr>
-                        
-                        <div class="row">
-                            <div class="col-md-6">
-                                <h6>Risikofaktoren</h6>
-                                <ul id="risk-factors-list" class="list-group">
-                                    <!-- Risk factors will be populated dynamically -->
-                                </ul>
-                            </div>
-                            <div class="col-md-6">
-                                <h6>Empfohlene Maßnahmen</h6>
-                                <div id="interventions">
-                                    <!-- Interventions will be populated dynamically -->
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-7">
+                                    <div class="chart-container mb-3" id="summary-chart">
+                                        <!-- Chart wird hier eingefügt -->
+                                        <canvas id="risk-distribution-chart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="col-md-5">
+                                    <h6>Risikokategorien</h6>
+                                    <table class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Kategorie</th>
+                                                <th>Anzahl</th>
+                                                <th>Prozent</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="risk-table">
+                                            <!-- Tabellendaten werden hier eingefügt -->
+                                        </tbody>
+                                    </table>
+                                    <div class="alert alert-primary">
+                                        <strong>Durchschnittliche Abwanderungswahrscheinlichkeit:</strong>
+                                        <span id="avg-churn-probability"></span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        
-                        <hr>
-                        
-                        <h6>Dokumentreferenzen</h6>
-                        <div id="document-references">
-                            <!-- Document references will be populated dynamically -->
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
+                </div>
+            </div>
+            
+            <div class="row mb-4">
+                <div class="col-lg-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h2 class="h5 mb-0">Kundendetails</h2>
+                            <div>
+                                <select id="sort-by" class="form-select form-select-sm d-inline-block" style="width: auto;">
+                                    <option value="risk-desc">Risiko (Höchstes zuerst)</option>
+                                    <option value="risk-asc">Risiko (Niedrigstes zuerst)</option>
+                                    <option value="name-asc">Name (A-Z)</option>
+                                    <option value="name-desc">Name (Z-A)</option>
+                                </select>
+                                <input type="text" id="search-customer" class="form-control form-control-sm d-inline-block ms-2" style="width: 200px;" placeholder="Kunde suchen...">
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="customers-container">
+                                <!-- Kundendetails werden hier eingefügt -->
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    </main>
-
-    <footer class="bg-dark text-white py-3 mt-auto">
-        <div class="container text-center">
-            <p class="mb-0">© 2025 Dokumentenbasiertes QA & Churn-Prediction System</p>
+    </div>
+    
+    <!-- Customer Detail Modal -->
+    <div class="modal fade" id="customerDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modal-customer-title">Kundendetails</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="customer-detail-loader" class="text-center">
+                        <div class="loader"></div>
+                        <p>Lade Kundendetails...</p>
+                    </div>
+                    <div id="customer-detail-content" class="d-none">
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h6>Allgemeine Informationen</h6>
+                                <table class="table table-sm">
+                                    <tr>
+                                        <th>Kundennummer</th>
+                                        <td id="detail-customer-id"></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Name</th>
+                                        <td id="detail-name"></td>
+                                    </tr>
+                                    <tr>
+                                        <th>E-Mail</th>
+                                        <td id="detail-email"></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Produkt</th>
+                                        <td id="detail-product"></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Abonnementdauer</th>
+                                        <td id="detail-subscription"></td>
+                                    </tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Churn-Prognose</h6>
+                                <div class="text-center mb-3">
+                                    <div class="progress mb-2" style="height: 20px;">
+                                        <div id="detail-churn-probability-bar" class="progress-bar bg-danger" role="progressbar" style="width: 0%"></div>
+                                    </div>
+                                    <div class="h4"><span id="detail-churn-probability"></span>% Abwanderungsrisiko</div>
+                                    <div class="mb-2">
+                                        <span id="detail-risk-category" class="risk-badge risk-mittel">Mittleres Risiko</span>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <h6>Risikofaktoren:</h6>
+                                    <ul id="detail-risk-factors" class="list-group list-group-flush">
+                                        <!-- Risikofaktoren werden hier eingefügt -->
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                <h6>Handlungsempfehlungen</h6>
+                                <div class="card">
+                                    <div class="card-body">
+                                        <ol id="detail-recommended-actions">
+                                            <!-- Handlungsempfehlungen werden hier eingefügt -->
+                                        </ol>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-4">
+                            <div class="col-md-12">
+                                <h6>Relevante Dokumentreferenzen</h6>
+                                <div id="detail-document-references">
+                                    <!-- Dokumentreferenzen werden hier eingefügt -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
+                    <button type="button" class="btn btn-primary">Bericht exportieren</button>
+                </div>
+            </div>
         </div>
-    </footer>
-
+    </div>
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/churn.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Elemente auswählen
+            const dataSourceRadios = document.querySelectorAll('input[name="dataSource"]');
+            const uploadSection = document.getElementById('upload-section');
+            const uploadArea = document.getElementById('upload-area');
+            const fileInput = document.getElementById('file-input');
+            const selectedFile = document.getElementById('selected-file');
+            const fileName = document.getElementById('file-name');
+            const removeFile = document.getElementById('remove-file');
+            const btnPredict = document.getElementById('btn-predict');
+            const loadingResults = document.getElementById('loading-results');
+            const predictionResults = document.getElementById('prediction-results');
+            const sortBy = document.getElementById('sort-by');
+            const searchCustomer = document.getElementById('search-customer');
+            const customersContainer = document.getElementById('customers-container');
+            
+            // Datenquelle wechseln
+            dataSourceRadios.forEach(radio => {
+                radio.addEventListener('change', function() {
+                    if (this.value === 'upload') {
+                        uploadSection.style.display = 'block';
+                    } else {
+                        uploadSection.style.display = 'none';
+                    }
+                });
+            });
+            
+            // Datei-Upload-Funktionalität
+            uploadArea.addEventListener('click', () => {
+                fileInput.click();
+            });
+            
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('bg-light');
+            });
+            
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('bg-light');
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('bg-light');
+                
+                if (e.dataTransfer.files.length) {
+                    const file = e.dataTransfer.files[0];
+                    if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
+                        handleFileSelect(file);
+                    } else {
+                        alert('Bitte wählen Sie eine CSV-Datei aus.');
+                    }
+                }
+            });
+            
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length) {
+                    const file = e.target.files[0];
+                    if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
+                        handleFileSelect(file);
+                    } else {
+                        alert('Bitte wählen Sie eine CSV-Datei aus.');
+                    }
+                }
+            });
+            
+            removeFile.addEventListener('click', () => {
+                fileInput.value = '';
+                selectedFile.classList.add('d-none');
+            });
+            
+            function handleFileSelect(file) {
+                fileName.textContent = file.name;
+                selectedFile.classList.remove('d-none');
+            }
+            
+            // Churn-Vorhersage starten
+            btnPredict.addEventListener('click', () => {
+                loadingResults.classList.remove('d-none');
+                predictionResults.classList.add('d-none');
+                
+                // Simuliere Verarbeitungszeit
+                setTimeout(() => {
+                    runPrediction();
+                }, 1500);
+            });
+            
+            function runPrediction() {
+                const dataSource = document.querySelector('input[name="dataSource"]:checked').value;
+                
+                let requestData = {
+                    data: []
+                };
+                
+                if (dataSource === 'upload' && fileInput.files.length > 0) {
+                    // In einer realen Anwendung würde hier die CSV-Datei verarbeitet werden
+                    // Für diese Demo verwenden wir auch bei Upload die Beispieldaten
+                }
+                
+                // Sende Anfrage an Backend
+                fetch('/api/churn/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Verstecke Ladeindikator und zeige Ergebnisse
+                    loadingResults.classList.add('d-none');
+                    predictionResults.classList.remove('d-none');
+                    
+                    // Zeige Zusammenfassung
+                    renderSummary(data.summary);
+                    
+                    // Zeige Kundendaten
+                    renderCustomers(data.predictions);
+                })
+                .catch(error => {
+                    alert('Fehler bei der Vorhersage: ' + error.message);
+                    loadingResults.classList.add('d-none');
+                });
+            }
+            
+            // Zusammenfassung anzeigen
+            function renderSummary(summary) {
+                // Durchschnittliche Abwanderungswahrscheinlichkeit
+                document.getElementById('avg-churn-probability').textContent = 
+                    (summary.avg_churn_probability * 100).toFixed(1) + '%';
+                
+                // Risikotabelle
+                const riskTable = document.getElementById('risk-table');
+                riskTable.innerHTML = '';
+                
+                const total = summary.total_customers;
+                const categories = Object.keys(summary.risk_distribution);
+                
+                categories.forEach(category => {
+                    const count = summary.risk_distribution[category];
+                    const percent = (count / total * 100).toFixed(1);
+                    
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><span class="risk-badge risk-${category.toLowerCase()}">${category}</span></td>
+                        <td>${count}</td>
+                        <td>${percent}%</td>
+                    `;
+                    
+                    riskTable.appendChild(row);
+                });
+                
+                // Diagramm
+                renderChart(summary.risk_distribution);
+            }
+            
+            // Diagramm anzeigen
+            function renderChart(riskDistribution) {
+                const ctx = document.getElementById('risk-distribution-chart').getContext('2d');
+                
+                const labels = Object.keys(riskDistribution);
+                const data = Object.values(riskDistribution);
+                const backgroundColors = [
+                    '#d1fae5',  // niedrig
+                    '#fef3c7',  // mittel
+                    '#fee2e2',  // hoch
+                    '#ef4444'   // sehr hoch
+                ];
+                
+                const borderColors = [
+                    '#065f46',  // niedrig
+                    '#92400e',  // mittel
+                    '#b91c1c',  // hoch
+                    '#7f1d1d'   // sehr hoch
+                ];
+                
+                new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Risikokategorien',
+                            data: data,
+                            backgroundColor: backgroundColors,
+                            borderColor: borderColors,
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right'
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Kundendaten anzeigen
+            function renderCustomers(customers) {
+                customersContainer.innerHTML = '';
+                
+                if (!customers || customers.length === 0) {
+                    customersContainer.innerHTML = '<div class="alert alert-info">Keine Kundendaten vorhanden.</div>';
+                    return;
+                }
+                
+                // Sortiere Kunden nach Risiko (absteigend)
+                customers.sort((a, b) => b.churn_probability - a.churn_probability);
+                
+                customers.forEach(customer => {
+                    const riskCategoryClass = `risk-${customer.risk_category.toLowerCase()}`;
+                    const progressBarWidth = Math.round(customer.churn_probability * 100);
+                    
+                    const customerCard = document.createElement('div');
+                    customerCard.className = 'card customer-card mb-3';
+                    customerCard.innerHTML = `
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <h5 class="card-title">${customer.name}</h5>
+                                    <p class="card-text text-muted">${customer.customer_id}</p>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="progress mb-2" style="height: 15px;">
+                                        <div class="progress-bar bg-danger" role="progressbar" style="width: ${progressBarWidth}%" 
+                                            aria-valuenow="${progressBarWidth}" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                    <p class="mb-0">${progressBarWidth}% Abwanderungsrisiko</p>
+                                </div>
+                                <div class="col-md-4 d-flex justify-content-end align-items-center">
+                                    <span class="risk-badge ${riskCategoryClass} me-2">${customer.risk_category}</span>
+                                    <button class="btn btn-sm btn-outline-primary view-customer"
+                                        data-id="${customer.customer_id}" data-bs-toggle="modal" data-bs-target="#customerDetailModal">
+                                        Details
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    customersContainer.appendChild(customerCard);
+                    
+                    // Füge Event-Listener für den Details-Button hinzu
+                    const detailButton = customerCard.querySelector('.view-customer');
+                    detailButton.addEventListener('click', () => {
+                        showCustomerDetails(customer);
+                    });
+                });
+            }
+            
+            // Kundendetails im Modal anzeigen
+            function showCustomerDetails(customer) {
+                const customerDetailLoader = document.getElementById('customer-detail-loader');
+                const customerDetailContent = document.getElementById('customer-detail-content');
+                
+                // Setze Modaltitel
+                document.getElementById('modal-customer-title').textContent = `Kundendetails: ${customer.name}`;
+                
+                // Zeige Ladeindikator
+                customerDetailLoader.style.display = 'block';
+                customerDetailContent.classList.add('d-none');
+                
+                // Simuliere Ladeziet
+                setTimeout(() => {
+                    // Verstecke Ladeindikator und zeige Inhalt
+                    customerDetailLoader.style.display = 'none';
+                    customerDetailContent.classList.remove('d-none');
+                    
+                    // Fülle Detaildaten
+                    document.getElementById('detail-customer-id').textContent = customer.customer_id;
+                    document.getElementById('detail-name').textContent = customer.name;
+                    document.getElementById('detail-email').textContent = customer.email || 'kunde@example.com';
+                    document.getElementById('detail-product').textContent = customer.product || 'Standard-Abonnement';
+                    document.getElementById('detail-subscription').textContent = (customer.subscription_months || '12') + ' Monate';
+                    
+                    // Churn-Prognose
+                    const churnProbability = Math.round(customer.churn_probability * 100);
+                    document.getElementById('detail-churn-probability').textContent = churnProbability;
+                    document.getElementById('detail-churn-probability-bar').style.width = churnProbability + '%';
+                    
+                    // Risikokategorie
+                    const riskCategory = document.getElementById('detail-risk-category');
+                    riskCategory.textContent = customer.risk_category;
+                    riskCategory.className = 'risk-badge risk-' + customer.risk_category.toLowerCase();
+                    
+                    // Risikofaktoren
+                    const riskFactorsList = document.getElementById('detail-risk-factors');
+                    riskFactorsList.innerHTML = '';
+                    
+                    customer.risk_factors.forEach(factor => {
+                        const li = document.createElement('li');
+                        li.className = 'list-group-item';
+                        li.innerHTML = `<i class="bi bi-exclamation-triangle-fill text-warning me-2"></i> ${factor}`;
+                        riskFactorsList.appendChild(li);
+                    });
+                    
+                    // Handlungsempfehlungen
+                    const actionsList = document.getElementById('detail-recommended-actions');
+                    actionsList.innerHTML = '';
+                    
+                    customer.recommended_actions.forEach(action => {
+                        const li = document.createElement('li');
+                        li.className = 'mb-2';
+                        li.textContent = action;
+                        actionsList.appendChild(li);
+                    });
+                    
+                    // Dokumentreferenzen
+                    const docRefs = document.getElementById('detail-document-references');
+                    docRefs.innerHTML = `
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle-fill me-2"></i>
+                            Empfehlungen basieren auf Analysen aus <strong>3 Dokumenten</strong> zur Churn-Prediction
+                            und Kundenbindung.
+                        </div>
+                    `;
+                }, 800);
+            }
+            
+            // Sortierung und Suche
+            sortBy.addEventListener('change', () => {
+                // In einer realen Anwendung würde hier die Sortierung implementiert
+                alert('Sortierung nach ' + sortBy.value + ' würde hier implementiert');
+            });
+            
+            searchCustomer.addEventListener('input', () => {
+                // In einer realen Anwendung würde hier die Suche implementiert
+                const searchTerm = searchCustomer.value.trim().toLowerCase();
+                
+                if (searchTerm.length > 0) {
+                    // Simuliere Filterung anhand des Namens
+                    const customerCards = document.querySelectorAll('.customer-card');
+                    customerCards.forEach(card => {
+                        const customerName = card.querySelector('.card-title').textContent.toLowerCase();
+                        
+                        if (customerName.includes(searchTerm)) {
+                            card.style.display = 'block';
+                        } else {
+                            card.style.display = 'none';
+                        }
+                    });
+                } else {
+                    // Zeige alle Kunden
+                    const customerCards = document.querySelectorAll('.customer-card');
+                    customerCards.forEach(card => {
+                        card.style.display = 'block';
+                    });
+                }
+            });
+        });
+    </script>
 </body>
 </html>
