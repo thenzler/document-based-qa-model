@@ -1,12 +1,14 @@
 import os
 import sys
+import json
+from datetime import datetime
+from pathlib import Path
+from werkzeug.utils import secure_filename
 
 # Pfad zum src-Verzeichnis hinzufügen
 sys.path.append('./src')
 
-from flask import Flask, render_template, request, jsonify, send_from_directory
-import json
-from pathlib import Path
+from flask import Flask, render_template, request, jsonify, send_from_directory, url_for, redirect
 
 # Erst nach dem Hinzufügen des Pfads importieren
 try:
@@ -19,34 +21,77 @@ except ImportError as e:
     sys.exit(1)
 
 app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = Path('data/uploads')
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB maximale Dateigröße
+app.config['DOCS_FOLDER'] = Path('data/churn_docs')
+app.config['ALLOWED_EXTENSIONS'] = {'txt', 'pdf', 'docx', 'md', 'html'}
 
 # Globale Variablen
 qa_system = None
 doc_processor = None
+churn_model = None
+recent_questions = []
 
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
+def init_system():
+    global qa_system, doc_processor, churn_model
+    
+    if qa_system is None:
+        qa_system = DocumentQA()
+        # Dokumente verarbeiten
+        docs_dir = app.config['DOCS_FOLDER']
+        if docs_dir.exists():
+            qa_system.process_documents(str(docs_dir))
+    
+    if doc_processor is None:
+        doc_processor = DocumentProcessor()
+    
+    if churn_model is None:
+        churn_model = ChurnModel()
+
+# Hauptrouten
 @app.route('/')
 def index():
     return render_template('index.html')
 
+@app.route('/qa')
+def qa_page():
+    return render_template('qa.html', recent_questions=recent_questions[-5:])
+
+@app.route('/documents')
+def documents_page():
+    init_system()
+    docs = []
+    
+    if doc_processor and app.config['DOCS_FOLDER'].exists():
+        docs = doc_processor.list_documents(str(app.config['DOCS_FOLDER']))
+    
+    return render_template('documents.html', documents=docs)
+
+@app.route('/churn')
+def churn_page():
+    return render_template('churn.html')
+
+# API-Endpunkte
 @app.route('/api/ask', methods=['POST'])
 def ask_question():
-    global qa_system
+    global qa_system, recent_questions
     
     # Initialisiere QA-System falls nötig
-    if qa_system is None:
-        try:
-            qa_system = DocumentQA()
-            # Dokumente verarbeiten
-            docs_dir = Path("data/churn_docs")
-            if docs_dir.exists():
-                qa_system.process_documents(str(docs_dir))
-        except Exception as e:
-            return jsonify({"error": f"Fehler bei der Initialisierung: {str(e)}"}), 500
+    init_system()
     
     # Hole Frage aus der Anfrage
     question = request.json.get('question', '')
     if not question:
         return jsonify({"error": "Keine Frage angegeben"}), 400
+    
+    # Zur Liste der kürzlich gestellten Fragen hinzufügen
+    if question not in recent_questions:
+        recent_questions.insert(0, question)
+        recent_questions = recent_questions[:10]  # Maximal 10 Fragen speichern
     
     # Beantworte Frage
     try:
@@ -55,5 +100,168 @@ def ask_question():
     except Exception as e:
         return jsonify({"error": f"Fehler beim Beantworten der Frage: {str(e)}"}), 500
 
+@app.route('/api/documents', methods=['GET'])
+def get_documents():
+    init_system()
+    try:
+        docs = []
+        if doc_processor and app.config['DOCS_FOLDER'].exists():
+            docs = doc_processor.list_documents(str(app.config['DOCS_FOLDER']))
+        return jsonify(docs)
+    except Exception as e:
+        return jsonify({"error": f"Fehler beim Abrufen der Dokumente: {str(e)}"}), 500
+
+@app.route('/api/documents/upload', methods=['POST'])
+def upload_document():
+    init_system()
+    
+    if 'file' not in request.files:
+        return jsonify({"error": "Keine Datei im Request"}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "Kein Dateiname angegeben"}), 400
+    
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        category = request.form.get('category', 'allgemein')
+        
+        # Stelle sicher, dass die Verzeichnisse existieren
+        os.makedirs(app.config['DOCS_FOLDER'], exist_ok=True)
+        
+        # Speichere Datei
+        file_path = app.config['DOCS_FOLDER'] / filename
+        file.save(file_path)
+        
+        # Verarbeite Dokument
+        try:
+            if doc_processor:
+                doc_processor.process_document(str(file_path), category)
+            if qa_system:
+                qa_system.add_document(str(file_path))
+            
+            return jsonify({
+                "success": True,
+                "message": f"Dokument '{filename}' erfolgreich hochgeladen und verarbeitet.",
+                "document": {
+                    "filename": filename,
+                    "path": str(file_path),
+                    "category": category,
+                    "upload_date": datetime.now().isoformat()
+                }
+            })
+        except Exception as e:
+            return jsonify({"error": f"Fehler bei der Verarbeitung des Dokuments: {str(e)}"}), 500
+    
+    return jsonify({"error": "Dateiformat nicht erlaubt"}), 400
+
+@app.route('/api/documents/process', methods=['POST'])
+def process_documents():
+    init_system()
+    force_reprocess = request.json.get('forceReprocess', False)
+    
+    try:
+        if doc_processor and app.config['DOCS_FOLDER'].exists():
+            results = doc_processor.process_all_documents(
+                str(app.config['DOCS_FOLDER']), 
+                force_reprocess=force_reprocess
+            )
+        if qa_system:
+            qa_system.process_documents(str(app.config['DOCS_FOLDER']))
+        
+        return jsonify({
+            "success": True,
+            "message": "Dokumente erfolgreich verarbeitet.",
+            "results": results if 'results' in locals() else {}
+        })
+    except Exception as e:
+        return jsonify({"error": f"Fehler bei der Verarbeitung der Dokumente: {str(e)}"}), 500
+
+@app.route('/api/qa/recent-questions', methods=['GET'])
+def get_recent_questions():
+    limit = int(request.args.get('limit', 5))
+    return jsonify(recent_questions[:limit])
+
+@app.route('/api/qa/answer', methods=['POST'])
+def answer_question():
+    global qa_system
+    
+    # Initialisiere QA-System falls nötig
+    init_system()
+    
+    # Parameter aus der Anfrage holen
+    question = request.json.get('question', '')
+    use_generation = request.json.get('useGeneration', True)
+    top_k = request.json.get('topK', 5)
+    
+    if not question:
+        return jsonify({"error": "Keine Frage angegeben"}), 400
+    
+    # Zur Liste der kürzlich gestellten Fragen hinzufügen
+    if question not in recent_questions:
+        recent_questions.insert(0, question)
+        recent_questions = recent_questions[:10]  # Maximal 10 Fragen speichern
+    
+    # Beantworte Frage
+    try:
+        start_time = datetime.now()
+        
+        # Antwort generieren
+        answer, sources = qa_system.answer_question(
+            question, 
+            use_generation=use_generation,
+            top_k=top_k
+        )
+        
+        processing_time = (datetime.now() - start_time).total_seconds()
+        
+        return jsonify({
+            "answer": answer,
+            "sources": sources,
+            "processingTime": processing_time
+        })
+    except Exception as e:
+        return jsonify({"error": f"Fehler beim Beantworten der Frage: {str(e)}"}), 500
+
+@app.route('/api/churn/predict', methods=['POST'])
+def predict_churn():
+    init_system()
+    
+    try:
+        # Kundendaten aus dem Request holen
+        data = request.json.get('data', [])
+        if not data:
+            # Überprüfen, ob eine Datei hochgeladen wurde
+            if 'file' in request.files:
+                file = request.files['file']
+                if file.filename != '':
+                    # CSV-Datei verarbeiten
+                    # Hier müsste eigentlich Code zur CSV-Verarbeitung stehen
+                    pass
+        
+        # Churn-Vorhersage durchführen
+        if churn_model:
+            predictions = churn_model.predict(data)
+            return jsonify(predictions)
+        else:
+            return jsonify({"error": "Churn-Modell nicht initialisiert"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Fehler bei der Churn-Vorhersage: {str(e)}"}), 500
+
+@app.route('/api/init', methods=['POST'])
+def initialize_system():
+    try:
+        init_system()
+        return jsonify({
+            "success": True,
+            "message": "System erfolgreich initialisiert"
+        })
+    except Exception as e:
+        return jsonify({"error": f"Fehler bei der Initialisierung: {str(e)}"}), 500
+
 if __name__ == '__main__':
+    # Stelle sicher, dass die Upload-Verzeichnisse existieren
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    os.makedirs(app.config['DOCS_FOLDER'], exist_ok=True)
+    
     app.run(debug=True)
