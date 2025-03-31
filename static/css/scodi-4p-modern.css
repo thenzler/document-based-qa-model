@@ -1,0 +1,425 @@
+/**
+ * SCODi 4P Modern Design-System
+ * Eine minimalistische, moderne CSS-Datei für das SCODi 4P Design
+ */
+
+:root {
+    /* Grundfarben */
+    --scodi-primary: #007f78;
+    --scodi-primary-light: #3a9e99;
+    --scodi-primary-dark: #005752;
+    --scodi-secondary: #4b5864;
+    --scodi-accent: #f8f9fa;
+    --scodi-text-primary: #333333;
+    --scodi-text-secondary: #666666;
+    --scodi-background: #ffffff;
+    
+    /* Statusfarben */
+    --scodi-success: #32a852;
+    --scodi-warning: #ffc107;
+    --scodi-error: #dc3545;
+    --scodi-info: #17a2b8;
+    
+    /* Typografie */
+    --scodi-font-family: 'Segoe UI', Arial, sans-serif;
+    --scodi-heading-font: 'Segoe UI', Arial, sans-serif;
+    --scodi-base-font-size: 16px;
+    
+    /* Abstände */
+    --scodi-spacing-xs: 4px;
+    --scodi-spacing-sm: 8px;
+    --scodi-spacing-md: 16px;
+    --scodi-spacing-lg: 24px;
+    --scodi-spacing-xl: 32px;
+    
+    /* Effekte */
+    --scodi-box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    --scodi-hover-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    --scodi-border-radius: 4px;
+    --scodi-border-radius-lg: 8px;
+}
+
+/* Base Styles */
+body {
+    font-family: var(--scodi-font-family);
+    font-size: var(--scodi-base-font-size);
+    color: var(--scodi-text-primary);
+    background-color: var(--scodi-background);
+    margin: 0;
+    padding: 0;
+    line-height: 1.5;
+}
+
+/* Container */
+.scodi-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 var(--scodi-spacing-md);
+}
+
+.scodi-content {
+    padding: var(--scodi-spacing-xl) 0;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--scodi-heading-font);
+    margin-top: 0;
+    font-weight: 600;
+    color: var(--scodi-text-primary);
+}
+
+h1 {
+    font-size: 28px;
+    margin-bottom: var(--scodi-spacing-lg);
+}
+
+h2 {
+    font-size: 24px;
+    margin-bottom: var(--scodi-spacing-md);
+    color: var(--scodi-secondary);
+}
+
+h3 {
+    font-size: 20px;
+    margin-bottom: var(--scodi-spacing-sm);
+}
+
+p {
+    margin-bottom: var(--scodi-spacing-md);
+}
+
+/* Logo */
+.scodi-logo {
+    display: block;
+    text-align: center;
+    padding: var(--scodi-spacing-md) 0;
+}
+
+.scodi-logo img {
+    height: 40px;
+}
+
+/* Top Navigation */
+.scodi-top-nav {
+    display: flex;
+    justify-content: center;
+    padding: var(--scodi-spacing-md) 0;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    background-color: var(--scodi-background);
+}
+
+.scodi-top-nav ul {
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.scodi-top-nav li {
+    margin: 0 var(--scodi-spacing-lg);
+}
+
+.scodi-top-nav a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    color: var(--scodi-text-secondary);
+    font-size: 14px;
+    transition: color 0.2s;
+}
+
+.scodi-top-nav a:hover {
+    color: var(--scodi-primary);
+}
+
+.scodi-top-nav a.active {
+    color: var(--scodi-primary);
+}
+
+.scodi-top-nav i {
+    font-size: 20px;
+    margin-bottom: var(--scodi-spacing-xs);
+}
+
+/* Cards */
+.scodi-card {
+    background-color: var(--scodi-background);
+    border-radius: var(--scodi-border-radius);
+    box-shadow: var(--scodi-box-shadow);
+    padding: var(--scodi-spacing-lg);
+    margin-bottom: var(--scodi-spacing-lg);
+    transition: box-shadow 0.3s, transform 0.3s;
+}
+
+.scodi-card:hover {
+    box-shadow: var(--scodi-hover-shadow);
+    transform: translateY(-2px);
+}
+
+.scodi-card-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: rgba(0, 127, 120, 0.1);
+    color: var(--scodi-primary);
+    font-size: 24px;
+    margin-bottom: var(--scodi-spacing-md);
+}
+
+.scodi-card-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: var(--scodi-spacing-sm);
+}
+
+.scodi-card-content {
+    color: var(--scodi-text-secondary);
+    margin-bottom: var(--scodi-spacing-md);
+}
+
+/* Buttons */
+.scodi-btn {
+    display: inline-block;
+    font-weight: 500;
+    text-align: center;
+    vertical-align: middle;
+    cursor: pointer;
+    border: 1px solid transparent;
+    padding: 8px 16px;
+    font-size: 16px;
+    line-height: 1.5;
+    border-radius: var(--scodi-border-radius);
+    transition: all 0.15s ease-in-out;
+    text-decoration: none;
+}
+
+.scodi-btn-primary {
+    color: white;
+    background-color: var(--scodi-primary);
+    border-color: var(--scodi-primary);
+}
+
+.scodi-btn-primary:hover {
+    background-color: var(--scodi-primary-dark);
+    border-color: var(--scodi-primary-dark);
+}
+
+.scodi-btn-secondary {
+    color: white;
+    background-color: var(--scodi-secondary);
+    border-color: var(--scodi-secondary);
+}
+
+.scodi-btn-secondary:hover {
+    background-color: #404b56;
+    border-color: #404b56;
+}
+
+.scodi-btn-outline {
+    color: var(--scodi-primary);
+    background-color: transparent;
+    border-color: var(--scodi-primary);
+}
+
+.scodi-btn-outline:hover {
+    color: white;
+    background-color: var(--scodi-primary);
+    border-color: var(--scodi-primary);
+}
+
+/* Forms */
+.scodi-form-group {
+    margin-bottom: var(--scodi-spacing-md);
+}
+
+.scodi-form-label {
+    display: block;
+    margin-bottom: var(--scodi-spacing-sm);
+    font-weight: 500;
+}
+
+.scodi-form-control {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    font-size: var(--scodi-base-font-size);
+    line-height: 1.5;
+    color: var(--scodi-text-primary);
+    background-color: var(--scodi-background);
+    background-clip: padding-box;
+    border: 1px solid #ced4da;
+    border-radius: var(--scodi-border-radius);
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.scodi-form-control:focus {
+    border-color: var(--scodi-primary-light);
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(0, 127, 120, 0.25);
+}
+
+/* Feature Cards */
+.feature-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--scodi-spacing-lg);
+    margin: var(--scodi-spacing-xl) 0;
+}
+
+.feature-card {
+    text-align: center;
+    padding: var(--scodi-spacing-xl);
+}
+
+/* Steps */
+.scodi-steps {
+    display: flex;
+    justify-content: space-between;
+    margin: var(--scodi-spacing-xl) 0;
+}
+
+.scodi-step {
+    display: flex;
+    align-items: center;
+}
+
+.scodi-step-number {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: var(--scodi-primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin-right: var(--scodi-spacing-sm);
+}
+
+/* Section Divider */
+.scodi-section {
+    margin: var(--scodi-spacing-xl) 0;
+    padding: var(--scodi-spacing-xl) 0;
+}
+
+.scodi-section-alt {
+    background-color: var(--scodi-accent);
+}
+
+.scodi-section-title {
+    text-align: center;
+    margin-bottom: var(--scodi-spacing-xl);
+}
+
+.scodi-section-title h2 {
+    font-size: 24px;
+    margin-bottom: var(--scodi-spacing-sm);
+}
+
+.scodi-section-title p {
+    color: var(--scodi-text-secondary);
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Center Content */
+.scodi-center {
+    text-align: center;
+}
+
+/* Loading Spinner */
+.scodi-spinner {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    border: 3px solid rgba(0, 127, 120, 0.2);
+    border-radius: 50%;
+    border-top-color: var(--scodi-primary);
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Responsive Utilities */
+@media (max-width: 768px) {
+    .scodi-top-nav {
+        overflow-x: auto;
+    }
+    
+    .scodi-top-nav li {
+        margin: 0 var(--scodi-spacing-md);
+    }
+    
+    .feature-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .scodi-steps {
+        flex-direction: column;
+        gap: var(--scodi-spacing-lg);
+    }
+}
+
+/* Page Specific */
+.scodi-dashboard {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.scodi-empty-state {
+    text-align: center;
+    padding: var(--scodi-spacing-xl);
+    background-color: var(--scodi-accent);
+    border-radius: var(--scodi-border-radius);
+    margin: var(--scodi-spacing-xl) 0;
+}
+
+.scodi-empty-state-icon {
+    font-size: 48px;
+    color: var(--scodi-secondary);
+    margin-bottom: var(--scodi-spacing-md);
+}
+
+/* Question Form */
+.question-form {
+    background-color: var(--scodi-accent);
+    padding: var(--scodi-spacing-lg);
+    border-radius: var(--scodi-border-radius);
+    margin-bottom: var(--scodi-spacing-xl);
+}
+
+.question-form textarea {
+    min-height: 100px;
+}
+
+/* Answer Box */
+.answer-box {
+    background-color: white;
+    border-left: 4px solid var(--scodi-primary);
+    border-radius: 0 var(--scodi-border-radius) var(--scodi-border-radius) 0;
+    padding: var(--scodi-spacing-lg);
+    box-shadow: var(--scodi-box-shadow);
+    margin-bottom: var(--scodi-spacing-lg);
+}
+
+.sources-box {
+    margin-top: var(--scodi-spacing-lg);
+    padding-top: var(--scodi-spacing-lg);
+    border-top: 1px solid rgba(0,0,0,0.1);
+}
+
+.source-item {
+    padding: var(--scodi-spacing-sm);
+    margin-bottom: var(--scodi-spacing-sm);
+    background-color: rgba(0,0,0,0.02);
+    border-radius: var(--scodi-border-radius);
+    font-size: 14px;
+}
