@@ -1,6 +1,6 @@
-# Dokumentenbasiertes Frage-Antwort-System mit Churn-Prediction
+# Dokumentenbasiertes Frage-Antwort-System mit SCODi 4P Design
 
-Ein Machine Learning Modell für dokumentenbasierte Frage-Antwort-Systeme mit Churn-Prediction als Anwendungsbeispiel. 
+Ein Machine Learning Modell für dokumentenbasierte Frage-Antwort-Systeme mit Churn-Prediction als Anwendungsbeispiel, designt nach SCODi 4P Standards.
 
 Das System nutzt Natural Language Processing (NLP), um auf Basis von Dokumenten Fragen zu beantworten und enthält ein Modul zur Kundenfluktuation-Vorhersage (Churn-Prediction).
 
@@ -21,10 +21,25 @@ Das System bietet folgende Hauptfunktionen:
    - Visualisierung der Ergebnisse
 
 3. **Web-Benutzeroberfläche**:
-   - Intuitive Benutzeroberfläche für alle Funktionen
+   - Intuitive Benutzeroberfläche im SCODi 4P Design
    - Datei-Upload und -Management
    - Visualisierung der Ergebnisse
    - Anpassbare Einstellungen
+
+## Design-System
+
+Das Projekt verwendet das SCODi 4P Design-System mit folgenden Komponenten:
+
+- Farbschema basierend auf SCODi Corporate Identity
+- Responsive Layout und Komponenten
+- Konsistente Typografie und Ikonografie
+- Angepasste Navigation und Footer
+
+### Farben
+
+- **Primärfarbe**: #007f78 (Dunkelgrün/Türkis)
+- **Sekundärfarbe**: #4b5864 (Dunkelgrau)
+- **Akzentfarbe**: #f7f7f7 (Hellgrau für Hintergründe)
 
 ## Installation
 
@@ -100,9 +115,28 @@ Das System basiert auf einer modularen Architektur mit folgenden Komponenten:
    - Identifikation von Risikofaktoren und Empfehlungen
 
 4. **Web-Oberfläche**:
-   - Flask-basiertes Web-Interface
-   - Responsive Design mit Bootstrap
+   - Flask-basiertes Web-Interface im SCODi 4P Design
+   - Responsive Design
    - Interaktive Komponenten mit JavaScript
+
+## SCODi 4P Anpassungen
+
+Diese Version enthält SCODi 4P Design-Anpassungen, die folgende Dateien umfassen:
+
+- `static/css/scodi-4p.css`: Stylesheet für SCODi 4P Design
+- `static/js/scodi-4p.js`: JavaScript-Funktionen für Interaktionen
+- `templates/layout.html`: Basis-Layout im SCODi 4P Design
+
+### Design-Implementierung
+
+Um das SCODi 4P Design zu verwenden:
+
+1. Kopiere die CSS- und JS-Dateien in die entsprechenden Verzeichnisse
+2. Ersetze das bestehende Layout durch das neue SCODi 4P Layout
+3. Passe die Anwendung an, um Designvariablen zu übergeben:
+   ```python
+   return render_template('index.html', design=SCODI_DESIGN)
+   ```
 
 ## Konfiguration
 
