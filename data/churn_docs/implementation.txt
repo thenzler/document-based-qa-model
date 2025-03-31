@@ -1,0 +1,177 @@
+# Churn Prediction Implementierung
+
+## Python-Code für Churn Prediction
+
+Die Implementierung eines Churn-Prediction-Modells erfolgt typischerweise in Python mit Scikit-Learn. Hier ist ein Überblick über die Hauptkomponenten:
+
+### 1. Bibliotheken importieren
+
+```python
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score
+from sklearn.impute import SimpleImputer
+
+import shap
+```
+
+### 2. Daten laden und explorieren
+
+```python
+def load_and_explore_data(file_path):
+    df = pd.read_csv(file_path)
+    print(f"Dataset Shape: {df.shape}")
+    print(f"Datentypen:\n{df.dtypes}")
+    
+    missing_values = df.isnull().sum()
+    print(f"Fehlende Werte:\n{missing_values[missing_values > 0]}")
+    
+    if 'Churn' in df.columns:
+        churn_distribution = df['Churn'].value_counts(normalize=True) * 100
+        print(f"Churn-Verteilung:\n{churn_distribution}")
+        
+    return df
+```
+
+### 3. Datenvorverarbeitung
+
+```python
+def preprocess_data(df, target_column='Churn'):
+    # Features und Zielvariable trennen
+    X = df.drop(target_column, axis=1)
+    y = df[target_column]
+    
+    # Kategorische und numerische Features identifizieren
+    categorical_features = X.select_dtypes(include=['object', 'category']).columns.tolist()
+    numerical_features = X.select_dtypes(include=['int64', 'float64']).columns.tolist()
+    
+    # Preprocessing-Pipeline erstellen
+    numerical_transformer = Pipeline(steps=[
+        ('imputer', SimpleImputer(strategy='median')),
+        ('scaler', StandardScaler())
+    ])
+    
+    categorical_transformer = Pipeline(steps=[
+        ('imputer', SimpleImputer(strategy='most_frequent')),
+        ('onehot', OneHotEncoder(handle_unknown='ignore'))
+    ])
+    
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ('num', numerical_transformer, numerical_features),
+            ('cat', categorical_transformer, categorical_features)
+        ])
+    
+    # Train-Test-Split
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+    
+    return X_train, X_test, y_train, y_test, preprocessor
+```
+
+### 4. Modelle trainieren und evaluieren
+
+```python
+def train_and_evaluate_models(X_train, X_test, y_train, y_test, preprocessor):
+    # Modelle definieren
+    models = {
+        'LogisticRegression': Pipeline(steps=[
+            ('preprocessor', preprocessor),
+            ('classifier', LogisticRegression(max_iter=1000, class_weight='balanced'))
+        ]),
+        'RandomForest': Pipeline(steps=[
+            ('preprocessor', preprocessor),
+            ('classifier', RandomForestClassifier(n_estimators=100, class_weight='balanced'))
+        ]),
+        'GradientBoosting': Pipeline(steps=[
+            ('preprocessor', preprocessor),
+            ('classifier', GradientBoostingClassifier(n_estimators=100))
+        ])
+    }
+    
+    results = {}
+    
+    # Jedes Modell trainieren und evaluieren
+    for name, model in models.items():
+        model.fit(X_train, y_train)
+        
+        # Vorhersagen
+        y_pred = model.predict(X_test)
+        y_prob = model.predict_proba(X_test)[:, 1]
+        
+        # Metriken berechnen
+        accuracy = model.score(X_test, y_test)
+        roc_auc = roc_auc_score(y_test, y_prob)
+        report = classification_report(y_test, y_pred, output_dict=True)
+        
+        # Ergebnisse speichern
+        results[name] = {
+            'model': model,
+            'accuracy': accuracy,
+            'roc_auc': roc_auc,
+            'report': report
+        }
+        
+    return results
+```
+
+### 5. Hyperparameter-Optimierung
+
+```python
+def optimize_best_model(X_train, y_train, best_model_name, preprocessor):
+    if best_model_name == 'RandomForest':
+        model = Pipeline(steps=[
+            ('preprocessor', preprocessor),
+            ('classifier', RandomForestClassifier())
+        ])
+        
+        param_grid = {
+            'classifier__n_estimators': [100, 200],
+            'classifier__max_depth': [None, 10, 20],
+            'classifier__min_samples_split': [2, 5],
+            'classifier__class_weight': ['balanced', 'balanced_subsample']
+        }
+    
+    # Grid Search mit Cross-Validation
+    grid_search = GridSearchCV(
+        model,
+        param_grid,
+        cv=5,
+        scoring='roc_auc',
+        verbose=1
+    )
+    
+    grid_search.fit(X_train, y_train)
+    return grid_search.best_estimator_
+```
+
+### 6. Modellinterpretation mit SHAP
+
+```python
+def explain_model(model, X_test):
+    # Extrahieren des trainierten Klassifikators
+    classifier = model.named_steps['classifier']
+    
+    # Vorverarbeitete Testdaten
+    X_test_processed = model.named_steps['preprocessor'].transform(X_test)
+    
+    # SHAP-Erklärungen berechnen
+    explainer = shap.TreeExplainer(classifier)
+    shap_values = explainer.shap_values(X_test_processed)
+    
+    # Feature-Wichtigkeit plotten
+    feature_names = model.named_steps['preprocessor'].get_feature_names_out()
+    shap.summary_plot(shap_values[1], X_test_processed, feature_names=feature_names)
+    
+    return shap_values
+```

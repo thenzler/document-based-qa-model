@@ -18,12 +18,14 @@ from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
+from sklearn.compose import ColumnTransformer
 import matplotlib.pyplot as plt
 import seaborn as sns
 from transformers import AutoModelForQuestionAnswering, AutoTokenizer, Trainer, TrainingArguments
+import re
 
 import shap
 import torch
@@ -44,6 +46,8 @@ class ChurnModel:
         self.model = None
         self.feature_names = None
         self.pipeline = None
+        self.categorical_features = None
+        self.numerical_features = None
         
         # Initialize the appropriate model
         if model_type == "RandomForest":
@@ -68,7 +72,7 @@ class ChurnModel:
     
     def preprocess_data(self, data: pd.DataFrame, target_col: str = "Churn") -> Tuple[Pipeline, pd.DataFrame, pd.Series]:
         """
-        Preprocess data for training.
+        Preprocess data for training with enhanced feature handling.
         
         Args:
             data: DataFrame containing the data
@@ -78,19 +82,33 @@ class ChurnModel:
             Tuple of (preprocessing_pipeline, X, y)
         """
         # Split features and target
-        X = data.drop(columns=[target_col])
-        y = data[target_col]
+        X = data.drop(columns=[target_col]) if target_col in data.columns else data.copy()
+        y = data[target_col] if target_col in data.columns else None
+        
+        # Identify feature types
+        self.numerical_features = X.select_dtypes(include=['int64', 'float64']).columns.tolist()
+        self.categorical_features = X.select_dtypes(include=['object', 'category']).columns.tolist()
         
         # Store feature names
         self.feature_names = X.columns.tolist()
         
         # Create preprocessing pipeline
-        numeric_features = X.select_dtypes(include=['int64', 'float64']).columns.tolist()
-        
-        preprocessing = Pipeline([
+        numeric_transformer = Pipeline([
             ('imputer', SimpleImputer(strategy='median')),
             ('scaler', StandardScaler())
         ])
+        
+        categorical_transformer = Pipeline([
+            ('imputer', SimpleImputer(strategy='most_frequent')),
+            ('onehot', OneHotEncoder(handle_unknown='ignore'))
+        ])
+        
+        preprocessing = ColumnTransformer(
+            transformers=[
+                ('num', numeric_transformer, self.numerical_features),
+                ('cat', categorical_transformer, self.categorical_features if self.categorical_features else [])
+            ]
+        )
         
         return preprocessing, X, y
     
@@ -269,7 +287,13 @@ class ChurnModel:
         
         # Generate summary plot
         plt.figure(figsize=(10, 8))
-        feature_names = self.feature_names
+        
+        # Get feature names after preprocessing
+        if hasattr(self.pipeline.named_steps['preprocessing'], 'get_feature_names_out'):
+            feature_names = self.pipeline.named_steps['preprocessing'].get_feature_names_out()
+        else:
+            feature_names = [f"feature_{i}" for i in range(X_processed.shape[1])]
+        
         shap.summary_plot(
             shap_values, 
             X_processed, 
@@ -277,6 +301,9 @@ class ChurnModel:
             show=False
         )
         plt.tight_layout()
+        
+        # Ensure directory exists
+        os.makedirs('models', exist_ok=True)
         plt.savefig('models/shap_summary.png')
         plt.close()
         
@@ -296,7 +323,9 @@ class ChurnModel:
         model_data = {
             'pipeline': self.pipeline,
             'feature_names': self.feature_names,
-            'model_type': self.model_type
+            'model_type': self.model_type,
+            'numerical_features': self.numerical_features,
+            'categorical_features': self.categorical_features
         }
         
         with open(save_path, 'wb') as f:
@@ -318,18 +347,20 @@ class ChurnModel:
         self.feature_names = model_data['feature_names']
         self.model_type = model_data['model_type']
         self.model = self.pipeline.named_steps['model']
+        self.numerical_features = model_data.get('numerical_features', [])
+        self.categorical_features = model_data.get('categorical_features', [])
         
         print(f"Model loaded from {load_path}")
     
     def predict(self, data: pd.DataFrame) -> pd.DataFrame:
         """
-        Make predictions on new data.
+        Make predictions on new data with additional risk insights.
         
         Args:
             data: DataFrame containing the new data
             
         Returns:
-            DataFrame with predictions
+            DataFrame with predictions and risk insights
         """
         if self.pipeline is None:
             raise ValueError("Model must be trained or loaded before prediction")
@@ -344,14 +375,170 @@ class ChurnModel:
             'churn_prediction': predictions
         })
         
-        # Add risk categories
+        # Add risk categories in German
         results['risk_category'] = pd.cut(
             results['churn_probability'],
             bins=[0, 0.3, 0.7, 1.0],
-            labels=['Low Risk', 'Medium Risk', 'High Risk']
+            labels=['Niedriges Risiko', 'Mittleres Risiko', 'Hohes Risiko']
         )
         
+        # Add risk factors if model supports feature importance
+        if hasattr(self.model, 'feature_importances_') or hasattr(self.model, 'coef_'):
+            # Get the preprocessor to transform the data
+            preprocessor = self.pipeline.named_steps['preprocessing']
+            X_processed = preprocessor.transform(data)
+            
+            # Get feature names after preprocessing
+            if hasattr(preprocessor, 'get_feature_names_out'):
+                feature_names = preprocessor.get_feature_names_out()
+            else:
+                feature_names = [f"feature_{i}" for i in range(X_processed.shape[1])]
+            
+            # For each customer, identify the top risk factors
+            for i in range(len(data)):
+                if probabilities[i] > 0.3:  # Only for medium/high risk
+                    # Get feature contributions using either feature_importances_ or coef_
+                    if hasattr(self.model, 'feature_importances_'):
+                        # For tree-based models, use a simple heuristic
+                        # Multiply feature values by importance
+                        contributions = X_processed[i] * self.model.feature_importances_
+                    else:
+                        # For logistic regression
+                        contributions = X_processed[i] * self.model.coef_[0]
+                    
+                    # Get top 3 contributing features
+                    top_idx = np.argsort(contributions)[-3:]
+                    top_features = [feature_names[idx] for idx in top_idx]
+                    
+                    # Add to results
+                    results.at[i, 'top_risk_factors'] = ', '.join(top_features)
+        
         return results
+
+
+class DocumentEnhancedChurnModel(ChurnModel):
+    """Churn prediction model enhanced with document-based features"""
+    
+    def __init__(self, model_type: str = "RandomForest", doc_embeddings: Optional[np.ndarray] = None, 
+                 doc_mapping: Optional[Dict] = None):
+        """
+        Initialize the document-enhanced churn prediction model.
+        
+        Args:
+            model_type: Type of model ('RandomForest', 'GradientBoosting', or 'LogisticRegression')
+            doc_embeddings: Optional document embeddings for recommendations
+            doc_mapping: Optional mapping from embedding indices to documents
+        """
+        super().__init__(model_type=model_type)
+        self.doc_embeddings = doc_embeddings
+        self.doc_mapping = doc_mapping
+        self.doc_intervention_map = {
+            'Niedriges Risiko': ['standard_betreuung.txt', 'check_ins.txt'],
+            'Mittleres Risiko': ['schulungen.txt', 'feature_demo.txt', 'erfolgsgeschichten.txt'],
+            'Hohes Risiko': ['rabatte.txt', 'premium_support.txt', 'bedarfsanalyse.txt']
+        }
+    
+    def set_document_embeddings(self, embeddings: np.ndarray, doc_mapping: Dict):
+        """
+        Set document embeddings for recommendation.
+        
+        Args:
+            embeddings: Document embeddings matrix
+            doc_mapping: Mapping from embedding indices to documents
+        """
+        self.doc_embeddings = embeddings
+        self.doc_mapping = doc_mapping
+    
+    def predict_with_interventions(self, data: pd.DataFrame) -> pd.DataFrame:
+        """
+        Make predictions with intervention recommendations based on documents.
+        
+        Args:
+            data: DataFrame containing customer data
+            
+        Returns:
+            DataFrame with predictions and intervention recommendations
+        """
+        # Get standard predictions
+        predictions = self.predict(data)
+        
+        # Add intervention recommendations based on risk category
+        recommendations = []
+        for i, row in predictions.iterrows():
+            risk_level = row['risk_category']
+            
+            # Get relevant documents for this risk level
+            relevant_docs = self.doc_intervention_map.get(risk_level, [])
+            
+            if relevant_docs:
+                # Simple mapping-based recommendation
+                recommendations.append(', '.join(relevant_docs))
+            else:
+                recommendations.append('')
+        
+        predictions['recommended_interventions'] = recommendations
+        
+        # Add document sources if available
+        if self.doc_embeddings is not None and self.doc_mapping is not None:
+            # For now, just use a placeholder - in a real implementation, you'd match
+            # customer features to document relevance
+            doc_sources = []
+            for i, row in predictions.iterrows():
+                if row['risk_category'] == 'Hohes Risiko':
+                    doc_sources.append('premium_support.txt, rabatte.txt')
+                elif row['risk_category'] == 'Mittleres Risiko':
+                    doc_sources.append('schulungen.txt, feature_demo.txt')
+                else:
+                    doc_sources.append('standard_betreuung.txt')
+            
+            predictions['document_sources'] = doc_sources
+        
+        return predictions
+    
+    def explain_prediction_with_documents(self, customer_data: pd.Series) -> Dict:
+        """
+        Provide a document-backed explanation for a customer prediction.
+        
+        Args:
+            customer_data: Series with a single customer's data
+            
+        Returns:
+            Dictionary with explanation and document references
+        """
+        # Make prediction for this customer
+        df = pd.DataFrame([customer_data])
+        prediction = self.predict(df).iloc[0]
+        
+        # Prepare explanation
+        risk_level = prediction['risk_category']
+        probability = prediction['churn_probability']
+        
+        # Create explanation dictionary
+        explanation = {
+            'risk_level': risk_level,
+            'probability': probability,
+            'prediction': bool(prediction['churn_prediction']),
+            'risk_factors': prediction.get('top_risk_factors', '').split(', '),
+            'document_references': []
+        }
+        
+        # Add document references based on risk level
+        if risk_level == 'Hohes Risiko':
+            explanation['document_references'] = [
+                {'filename': 'use_case.txt', 'section': 'Hochrisiko-Kunden (>70%)'},
+                {'filename': 'implementation.txt', 'section': 'Hyperparameter-Optimierung'}
+            ]
+        elif risk_level == 'Mittleres Risiko':
+            explanation['document_references'] = [
+                {'filename': 'use_case.txt', 'section': 'Mittleres Risiko (30-70%)'},
+                {'filename': 'churn_theory.txt', 'section': 'Feature Engineering für Churn Prediction'}
+            ]
+        else:
+            explanation['document_references'] = [
+                {'filename': 'use_case.txt', 'section': 'Niedriges Risiko (<30%)'}
+            ]
+        
+        return explanation
 
 
 class QAModelTrainer:
@@ -509,6 +696,136 @@ class QAModelTrainer:
         
         print(f"Created {len(qa_examples)} QA examples")
         return qa_examples
+    
+    def extract_qa_pairs_from_documents(self, documents: List[Dict]) -> List[Dict]:
+        """
+        Extract potential QA pairs from documents using patterns.
+        
+        Args:
+            documents: List of document dictionaries
+            
+        Returns:
+            List of QA examples
+        """
+        qa_examples = []
+        
+        # Pattern for QA format like "## Question: What is X? **Answer:** Y"
+        qa_pattern = re.compile(r'(?:##?\s*)?(?:Frage|Question)\s*(?:\d+)?:?\s*([^\n]+)\s*(?:\n+[^\n]*(?:Antwort|Answer)[^\n]*:?\s*)(.*?)(?=\n\s*(?:##?\s*)?(?:Frage|Question)|$)', re.DOTALL)
+        
+        for doc in documents:
+            text = doc["text"]
+            
+            # Search for QA patterns
+            matches = qa_pattern.findall(text)
+            
+            for match in matches:
+                question = match[0].strip()
+                answer = match[1].strip()
+                
+                # Clean up formatting
+                answer = re.sub(r'\*\*|\*', '', answer)  # Remove Markdown formatting
+                
+                # Add to examples if both question and answer are present
+                if question and answer:
+                    example = {
+                        "question": question,
+                        "context": text,
+                        "answer": answer,
+                        "source": doc["source"]
+                    }
+                    qa_examples.append(example)
+        
+        print(f"Extracted {len(qa_examples)} QA pairs from documents")
+        return qa_examples
+
+
+class DocumentBasedQATrainer:
+    """Specialized trainer for document-based QA models"""
+    
+    def __init__(self, qa_trainer: QAModelTrainer):
+        """
+        Initialize the document-based QA trainer.
+        
+        Args:
+            qa_trainer: QA model trainer for the base QA capabilities
+        """
+        self.qa_trainer = qa_trainer
+        self.training_examples = []
+        self.document_sources = {}
+    
+    def prepare_training_data_from_docs(self, documents: List[Dict], doc_processor=None):
+        """
+        Prepare training data from documents.
+        
+        Args:
+            documents: List of document dictionaries
+            doc_processor: Optional document processor for additional processing
+            
+        Returns:
+            Number of examples created
+        """
+        # Extract QA pairs from documents
+        qa_examples = self.qa_trainer.extract_qa_pairs_from_documents(documents)
+        
+        # Store document sources for each example
+        for example in qa_examples:
+            self.document_sources[example["question"]] = example["source"]
+        
+        # Add to training examples
+        self.training_examples.extend(qa_examples)
+        
+        # If we have a document processor, add document keywords
+        if doc_processor:
+            for example in self.training_examples:
+                # Extract keywords using the document processor
+                keywords = doc_processor.extract_keywords(example["question"])
+                example["keywords"] = list(keywords)
+        
+        return len(qa_examples)
+    
+    def create_training_dataset(self):
+        """
+        Create a PyTorch dataset from the training examples.
+        
+        Returns:
+            PyTorch Dataset for training
+        """
+        return self.qa_trainer.prepare_qa_data(self.training_examples)
+    
+    def train_model(self, output_dir: str, epochs: int = 3, batch_size: int = 8):
+        """
+        Train the QA model on the document-based examples.
+        
+        Args:
+            output_dir: Directory to save the model
+            epochs: Number of training epochs
+            batch_size: Training batch size
+            
+        Returns:
+            Trained model
+        """
+        if not self.training_examples:
+            raise ValueError("No training examples available. Call prepare_training_data_from_docs first.")
+        
+        # Create dataset
+        train_dataset = self.create_training_dataset()
+        
+        # Train model
+        self.qa_trainer.train_qa_model(train_dataset, output_dir, epochs, batch_size)
+        
+        return self.qa_trainer.model
+    
+    def get_document_source(self, question: str) -> Optional[str]:
+        """
+        Get the document source for a question.
+        
+        Args:
+            question: The question text
+            
+        Returns:
+            Document source if available, None otherwise
+        """
+        return self.document_sources.get(question)
 
 
 if __name__ == "__main__":
