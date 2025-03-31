@@ -13,8 +13,9 @@ import re
 import glob
 import pandas as pd
 import numpy as np
-from typing import List, Dict, Union, Tuple, Optional
+from typing import List, Dict, Union, Tuple, Optional, Set
 from pathlib import Path
+import json
 
 # For text processing
 from transformers import AutoTokenizer
@@ -51,6 +52,11 @@ class DocumentProcessor:
         self.document_store = []
         self.document_embeddings = None
         self.index = None
+        self.section_markers = [
+            r'^\d+\.\s+\w+',  # Numbered sections like "1. Introduction"
+            r'^#+\s+\w+',     # Markdown headings
+            r'^\w+:',         # Section headers ending with colon
+        ]
     
     def load_documents(self, docs_dir: Union[str, Path]) -> List[Dict]:
         """
@@ -64,22 +70,39 @@ class DocumentProcessor:
         """
         docs_dir = Path(docs_dir)
         
-        # List all text files in the directory
+        # List all supported file types in the directory
         text_files = list(docs_dir.glob("**/*.txt"))
+        markdown_files = list(docs_dir.glob("**/*.md"))
+        pdf_files = list(docs_dir.glob("**/*.pdf"))
+        docx_files = list(docs_dir.glob("**/*.docx"))
         
+        all_files = text_files + markdown_files + pdf_files + docx_files
         documents = []
         
-        for file_path in text_files:
+        for file_path in all_files:
             try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    text = f.read()
+                # Handle different file types
+                if file_path.suffix.lower() == '.txt' or file_path.suffix.lower() == '.md':
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        text = f.read()
+                elif file_path.suffix.lower() == '.pdf':
+                    # For PDF files, you would need additional libraries
+                    # This is a placeholder for PDF processing
+                    print(f"PDF processing not implemented for {file_path}")
+                    continue
+                elif file_path.suffix.lower() == '.docx':
+                    # For DOCX files, you would need additional libraries
+                    # This is a placeholder for DOCX processing
+                    print(f"DOCX processing not implemented for {file_path}")
+                    continue
                 
                 # Create document entry with metadata
                 doc = {
                     "text": text,
                     "source": str(file_path),
                     "filename": file_path.name,
-                    "created_at": os.path.getctime(file_path)
+                    "created_at": os.path.getctime(file_path),
+                    "file_type": file_path.suffix.lower()
                 }
                 documents.append(doc)
                 
@@ -88,6 +111,48 @@ class DocumentProcessor:
         
         print(f"Loaded {len(documents)} documents")
         return documents
+    
+    def identify_sections(self, text: str) -> List[Dict]:
+        """
+        Identify sections within a document.
+        
+        Args:
+            text: Document text
+            
+        Returns:
+            List of section dictionaries with text and metadata
+        """
+        lines = text.split('\n')
+        sections = []
+        current_section = {"title": "Introduction", "content": "", "start_line": 0}
+        
+        for i, line in enumerate(lines):
+            # Check if this line is a section marker
+            is_section_marker = False
+            for marker in self.section_markers:
+                if re.match(marker, line.strip()):
+                    is_section_marker = True
+                    # Save previous section if not empty
+                    if current_section["content"].strip():
+                        sections.append(current_section)
+                    
+                    # Start new section
+                    current_section = {
+                        "title": line.strip(),
+                        "content": "",
+                        "start_line": i
+                    }
+                    break
+            
+            # If not a section marker, add to current section content
+            if not is_section_marker:
+                current_section["content"] += line + "\n"
+        
+        # Add the last section
+        if current_section["content"].strip():
+            sections.append(current_section)
+        
+        return sections
     
     def preprocess_documents(self, documents: List[Dict]) -> List[Dict]:
         """
@@ -101,22 +166,33 @@ class DocumentProcessor:
         """
         processed_docs = []
         
-        for doc in documents:
+        for doc_idx, doc in enumerate(documents):
             text = doc["text"]
             
-            # Split text into chunks
-            chunks = self.text_splitter.split_text(text)
+            # Identify sections
+            sections = self.identify_sections(text)
             
-            # Create document chunk entries
-            for i, chunk in enumerate(chunks):
-                chunk_doc = {
-                    "text": chunk,
-                    "source": doc["source"],
-                    "filename": doc["filename"],
-                    "chunk_id": i,
-                    "doc_id": documents.index(doc)
-                }
-                processed_docs.append(chunk_doc)
+            # Process each section
+            for section_idx, section in enumerate(sections):
+                section_text = section["content"]
+                section_title = section["title"]
+                
+                # Split section into chunks
+                chunks = self.text_splitter.split_text(section_text)
+                
+                # Create document chunk entries
+                for chunk_idx, chunk in enumerate(chunks):
+                    chunk_doc = {
+                        "text": chunk,
+                        "source": doc["source"],
+                        "filename": doc["filename"],
+                        "section": section_title,
+                        "section_idx": section_idx,
+                        "chunk_idx": chunk_idx,
+                        "doc_idx": doc_idx,
+                        "full_reference": f"{doc['filename']} - Section: {section_title}"
+                    }
+                    processed_docs.append(chunk_doc)
         
         print(f"Created {len(processed_docs)} document chunks")
         self.document_store = processed_docs
@@ -169,6 +245,51 @@ class DocumentProcessor:
         print(f"Built index with {index.ntotal} vectors")
         return index
     
+    def extract_keywords(self, text: str, max_keywords: int = 10) -> Set[str]:
+        """
+        Extract keywords from text.
+        
+        Args:
+            text: Text to extract keywords from
+            max_keywords: Maximum number of keywords to extract
+            
+        Returns:
+            Set of keywords
+        """
+        doc = self.nlp(text)
+        keywords = set()
+        
+        # Extract named entities
+        for ent in doc.ents:
+            keywords.add(ent.text.lower())
+        
+        # Extract noun chunks
+        for chunk in doc.noun_chunks:
+            keywords.add(chunk.text.lower())
+        
+        # Get most frequent lemmas that are nouns, verbs, or adjectives
+        word_freq = {}
+        for token in doc:
+            if token.pos_ in ["NOUN", "VERB", "ADJ"] and not token.is_stop and token.lemma_.strip():
+                word = token.lemma_.lower()
+                if word in word_freq:
+                    word_freq[word] += 1
+                else:
+                    word_freq[word] = 1
+        
+        # Sort by frequency and add top words
+        sorted_words = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)
+        for word, _ in sorted_words[:max_keywords]:
+            keywords.add(word)
+        
+        return keywords
+    
+    def add_keywords_to_documents(self):
+        """Add extracted keywords to document chunks."""
+        for i, doc in enumerate(self.document_store):
+            keywords = self.extract_keywords(doc["text"])
+            self.document_store[i]["keywords"] = list(keywords)
+    
     def process_pipeline(self, docs_dir: Union[str, Path]) -> Tuple[List[Dict], np.ndarray, faiss.Index]:
         """
         Run the full document processing pipeline.
@@ -181,6 +302,7 @@ class DocumentProcessor:
         """
         documents = self.load_documents(docs_dir)
         processed_docs = self.preprocess_documents(documents)
+        self.add_keywords_to_documents()
         embeddings = self.create_embeddings(processed_docs)
         index = self.build_index(embeddings)
         
