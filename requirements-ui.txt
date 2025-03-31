@@ -1,29 +1,35 @@
-# Base requirements from original project
-numpy>=1.20.0
-pandas>=1.3.0
-scikit-learn>=1.0.0
-matplotlib>=3.4.0
-seaborn>=0.11.0
-torch>=1.9.0
-transformers>=4.15.0
-sentence-transformers>=2.2.0
-faiss-cpu>=1.7.0
-python-dotenv>=0.19.0
-pytest>=6.2.5
-shap>=0.40.0
-lime>=0.2.0
-langchain>=0.2.0
-spacy>=3.2.0
-pdfplumber>=0.7.0
-python-docx>=0.8.11
-nltk>=3.6.0
-rank_bm25>=0.2.2
-pymupdf>=1.19.0
-tqdm>=4.62.0
+# Flask und Webserver
+Flask==2.3.3
+Werkzeug==2.3.7
+gunicorn==21.2.0
 
-# Additional requirements for web UI
-flask>=2.0.0
-flask-cors>=3.0.10
-gunicorn>=20.1.0
-pillow>=8.3.0
-Werkzeug>=2.0.0
+# UI-Komponenten
+Jinja2==3.1.2
+Bootstrap-Flask==2.3.0
+
+# Datenverarbeitung
+pandas==2.1.0
+numpy==1.25.2
+
+# Dokumentverarbeitung
+python-docx==0.8.11
+PyPDF2==3.0.1
+beautifulsoup4==4.12.2
+markdown==3.4.4
+
+# Grundlegende Modellierungskomponenten
+scikit-learn==1.3.0
+joblib==1.3.2
+
+# API und Dateiverwaltung
+requests==2.31.0
+Werkzeug==2.3.7
+
+# Sicherheit
+Flask-WTF==1.1.1
+Flask-Login==0.6.2
+
+# Zusätzliche Abhängigkeiten
+python-dateutil==2.8.2
+pytz==2023.3
+six==1.16.0
