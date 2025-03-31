@@ -95,8 +95,11 @@ def ask_question():
     
     # Beantworte Frage
     try:
-        response = qa_system.answer_question(question)
-        return jsonify(response)
+        answer, sources = qa_system.answer_question(question)
+        return jsonify({
+            "answer": answer,
+            "sources": sources
+        })
     except Exception as e:
         return jsonify({"error": f"Fehler beim Beantworten der Frage: {str(e)}"}), 500
 
@@ -184,7 +187,7 @@ def get_recent_questions():
 
 @app.route('/api/qa/answer', methods=['POST'])
 def answer_question():
-    global qa_system
+    global qa_system, recent_questions
     
     # Initialisiere QA-System falls nötig
     init_system()
@@ -215,12 +218,21 @@ def answer_question():
         
         processing_time = (datetime.now() - start_time).total_seconds()
         
+        # Stelle sicher, dass die Antwort ein String ist
+        if not isinstance(answer, str):
+            answer = str(answer)
+            
+        # Stelle sicher, dass die Quellen eine Liste sind
+        if not isinstance(sources, list):
+            sources = []
+            
         return jsonify({
             "answer": answer,
             "sources": sources,
             "processingTime": processing_time
         })
     except Exception as e:
+        print(f"Fehler bei answer_question: {str(e)}")
         return jsonify({"error": f"Fehler beim Beantworten der Frage: {str(e)}"}), 500
 
 @app.route('/api/churn/predict', methods=['POST'])
