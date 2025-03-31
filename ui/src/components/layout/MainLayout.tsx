@@ -6,7 +6,7 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import DescriptionIcon from '@mui/icons-material/Description';
 import SchoolIcon from '@mui/icons-material/School';
 import ModelTrainingIcon from '@mui/icons-material/ModelTraining';
-import AssessmentIcon from '@mui/icons-material/Assessment';
+import QuestionAnswerIcon from '@mui/icons-material/QuestionAnswer';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -24,7 +24,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     { title: 'Dokumente', path: '/documents', icon: <DescriptionIcon /> },
     { title: 'Training', path: '/training', icon: <SchoolIcon /> },
     { title: 'Modelle', path: '/models', icon: <ModelTrainingIcon /> },
-    { title: 'Churn Prediction', path: '/churn', icon: <AssessmentIcon /> }
+    { title: 'Q&A Interface', path: '/qa', icon: <QuestionAnswerIcon /> }
   ];
 
   const toggleDrawer = (open: boolean) => (event: React.KeyboardEvent | React.MouseEvent) => {
