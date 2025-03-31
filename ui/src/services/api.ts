@@ -161,49 +161,8 @@ export const QAAPI = {
   }
 };
 
-// Churn API
-export const ChurnAPI = {
-  predictChurn: async (customerData: any) => {
-    try {
-      const response = await api.post('/api/churn/predict', customerData);
-      return response.data;
-    } catch (error) {
-      console.error('Error predicting churn:', error);
-      throw error;
-    }
-  },
-  
-  predictBatchCsv: async (file: File) => {
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      
-      const response = await api.post('/api/churn/predict-csv', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error predicting batch churn:', error);
-      throw error;
-    }
-  },
-  
-  getBatchResults: async (batchId: string) => {
-    try {
-      const response = await api.get(`/api/churn/batch/${batchId}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching batch results:', error);
-      throw error;
-    }
-  }
-};
-
 export default {
   DocumentAPI,
   TrainingAPI,
-  QAAPI,
-  ChurnAPI
+  QAAPI
 };
