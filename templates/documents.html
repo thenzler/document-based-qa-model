@@ -3,227 +3,716 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dokumente | Dokumentenbasiertes QA</title>
+    <title>Dokumentenverwaltung - Dokumentenbasiertes QA-System</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        .document-card {
+            margin-bottom: 15px;
+            transition: transform 0.2s;
+        }
+        .document-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .document-icon {
+            font-size: 2rem;
+            margin-right: 15px;
+        }
+        .upload-area {
+            border: 2px dashed #dee2e6;
+            border-radius: 5px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .upload-area:hover {
+            background-color: #f8f9fa;
+        }
+        .upload-area.dragover {
+            background-color: #e9ecef;
+            border-color: #6c757d;
+        }
+        #document-list {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .table-hover tbody tr:hover {
+            cursor: pointer;
+        }
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #007bff;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body>
-    <header class="bg-primary text-white py-3">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
-            <div class="d-flex align-items-center">
-                <i class="bi bi-book me-3 fs-2"></i>
-                <h1>Dokumentenbasiertes QA & Churn-Prediction</h1>
-            </div>
-        </div>
-    </header>
-
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
+            <a class="navbar-brand" href="/">Dokumentenbasiertes QA-System</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav">
                     <li class="nav-item">
-                        <a class="nav-link" href="/"><i class="bi bi-house-door"></i> Home</a>
+                        <a class="nav-link" href="/">Home</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/qa"><i class="bi bi-question-circle"></i> Frage & Antwort</a>
+                        <a class="nav-link" href="/qa">Frage & Antwort</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/churn"><i class="bi bi-graph-up"></i> Churn-Prediction</a>
+                        <a class="nav-link active" href="/documents">Dokumente</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link active" href="/documents"><i class="bi bi-file-text"></i> Dokumente</a>
+                        <a class="nav-link" href="/churn">Churn-Prediction</a>
                     </li>
                 </ul>
-            </div>
-            <div class="status-indicator" id="status-indicator">
-                <div class="spinner-border spinner-border-sm text-light me-2 d-none" id="status-spinner" role="status"></div>
-                <span id="status-text">Initialisierung...</span>
             </div>
         </div>
     </nav>
 
-    <main class="container my-4">
-        <!-- Document management section -->
-        <div class="row mb-4">
-            <div class="col">
-                <div class="card">
-                    <div class="card-header bg-secondary text-white">
-                        <h2 class="h4 mb-0"><i class="bi bi-file-text"></i> Dokumentenverwaltung</h2>
+    <div class="container mt-4">
+        <h1 class="mb-4">Dokumentenverwaltung</h1>
+        
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h2 class="h5 mb-0">Dokumente</h2>
+                        <button id="btn-reprocess" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-arrow-repeat"></i> Dokumente neu verarbeiten
+                        </button>
                     </div>
                     <div class="card-body">
-                        <p>Verwalten Sie die Dokumente, die für die Beantwortung von Fragen und Churn-Prediction-Erklärungen verwendet werden.</p>
-                        
-                        <!-- Document upload card -->
-                        <div class="card mb-4">
-                            <div class="card-header bg-light">
-                                <h3 class="h5 mb-0">Neues Dokument hinzufügen</h3>
-                            </div>
-                            <div class="card-body">
-                                <form id="document-upload-form">
-                                    <div class="input-group mb-3">
-                                        <input type="file" class="form-control" id="document-upload" accept=".txt,.pdf,.docx,.md,.html">
-                                        <button class="btn btn-primary" type="submit" id="upload-document-btn">
-                                            <i class="bi bi-upload"></i> Hochladen
-                                        </button>
-                                    </div>
-                                    <div class="form-text mb-3">Unterstützte Formate: TXT, PDF, DOCX, MD, HTML</div>
-                                </form>
-                                
-                                <!-- Upload status alert, hidden initially -->
-                                <div class="alert alert-info d-none" role="alert" id="upload-status">
-                                    Dokument wird hochgeladen und verarbeitet...
-                                </div>
-                            </div>
+                        <div id="loading-documents" class="text-center d-none">
+                            <div class="loader"></div>
+                            <p>Lade Dokumente...</p>
                         </div>
                         
-                        <!-- Documents table -->
-                        <div class="card">
-                            <div class="card-header bg-light">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <h3 class="h5 mb-0">Verfügbare Dokumente</h3>
-                                    <button class="btn btn-sm btn-outline-primary" id="refresh-docs-btn">
-                                        <i class="bi bi-arrow-clockwise"></i> Aktualisieren
-                                    </button>
+                        <div id="document-list">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Dokument</th>
+                                        <th>Kategorie</th>
+                                        <th>Größe</th>
+                                        <th>Aktionen</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="documents-table-body">
+                                    {% if documents %}
+                                        {% for doc in documents %}
+                                            <tr class="document-row" data-id="{{ doc.id }}">
+                                                <td>
+                                                    <div class="d-flex align-items-center">
+                                                        {% if doc.file_type == 'pdf' %}
+                                                            <i class="bi bi-file-pdf text-danger document-icon"></i>
+                                                        {% elif doc.file_type == 'docx' %}
+                                                            <i class="bi bi-file-word text-primary document-icon"></i>
+                                                        {% elif doc.file_type == 'txt' %}
+                                                            <i class="bi bi-file-text text-secondary document-icon"></i>
+                                                        {% else %}
+                                                            <i class="bi bi-file-earmark text-secondary document-icon"></i>
+                                                        {% endif %}
+                                                        <div>
+                                                            <div>{{ doc.filename }}</div>
+                                                            <small class="text-muted">Hinzugefügt: {{ doc.upload_date }}</small>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td>{{ doc.category or 'Allgemein' }}</td>
+                                                <td>{{ doc.size }}</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-info view-document" data-id="{{ doc.id }}">
+                                                        <i class="bi bi-eye"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-danger delete-document" data-id="{{ doc.id }}">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    {% else %}
+                                        <tr>
+                                            <td colspan="4" class="text-center text-muted">Keine Dokumente vorhanden</td>
+                                        </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="h5 mb-0">Dokument hochladen</h2>
+                    </div>
+                    <div class="card-body">
+                        <form id="upload-form">
+                            <div class="mb-3">
+                                <label for="category" class="form-label">Kategorie</label>
+                                <select class="form-select" id="category" name="category">
+                                    <option value="churn">Churn-Prediction</option>
+                                    <option value="product">Produkt</option>
+                                    <option value="company">Unternehmen</option>
+                                    <option value="other">Sonstige</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <div id="upload-area" class="upload-area">
+                                    <i class="bi bi-cloud-upload fs-1"></i>
+                                    <p class="mb-0">Dateien hierher ziehen oder klicken zum Auswählen</p>
+                                    <small class="text-muted">Unterstützte Formate: PDF, DOCX, TXT, MD, HTML</small>
+                                </div>
+                                <input type="file" id="file-input" class="d-none" accept=".pdf,.docx,.txt,.md,.html">
+                            </div>
+                            
+                            <div id="selected-file" class="mb-3 d-none">
+                                <div class="alert alert-info">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-file-earmark me-2"></i>
+                                        <div>
+                                            <div id="file-name">filename.pdf</div>
+                                            <small id="file-size">0 KB</small>
+                                        </div>
+                                        <button type="button" id="remove-file" class="btn-close ms-auto"></button>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="card-body">
-                                <!-- Loading indicator -->
-                                <div id="documents-loading" class="text-center py-4">
-                                    <div class="spinner-border text-primary" role="status">
-                                        <span class="visually-hidden">Wird geladen...</span>
+                            
+                            <div id="upload-progress" class="progress mb-3 d-none">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                     role="progressbar" style="width: 0%"></div>
+                            </div>
+                            
+                            <button type="submit" id="btn-upload" class="btn btn-primary w-100" disabled>
+                                <i class="bi bi-upload"></i> Hochladen
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h2 class="h5 mb-0">Einstellungen</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="chunk-size" class="form-label">Chunk-Größe: <span id="chunk-size-value">1000</span> Zeichen</label>
+                            <input type="range" class="form-range" min="200" max="2000" step="100" value="1000" id="chunk-size">
+                        </div>
+                        <div class="mb-3">
+                            <label for="overlap" class="form-label">Überlappung: <span id="overlap-value">200</span> Zeichen</label>
+                            <input type="range" class="form-range" min="0" max="500" step="50" value="200" id="overlap">
+                        </div>
+                        <button id="btn-save-settings" class="btn btn-outline-primary">
+                            <i class="bi bi-save"></i> Einstellungen speichern
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Document Detail Modal -->
+    <div class="modal fade" id="documentDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modal-document-title">Dokumentdetails</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="document-detail-loader" class="text-center">
+                        <div class="loader"></div>
+                        <p>Lade Dokumentdetails...</p>
+                    </div>
+                    <div id="document-detail-content" class="d-none">
+                        <ul class="nav nav-tabs" id="documentTabs">
+                            <li class="nav-item">
+                                <a class="nav-link active" data-bs-toggle="tab" href="#info-tab">Informationen</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-bs-toggle="tab" href="#content-tab">Inhalt</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-bs-toggle="tab" href="#chunks-tab">Chunks</a>
+                            </li>
+                        </ul>
+                        <div class="tab-content p-3">
+                            <div class="tab-pane fade show active" id="info-tab">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Metadaten</h6>
+                                        <table class="table table-sm">
+                                            <tr>
+                                                <th>Dateiname</th>
+                                                <td id="detail-filename"></td>
+                                            </tr>
+                                            <tr>
+                                                <th>Kategorie</th>
+                                                <td id="detail-category"></td>
+                                            </tr>
+                                            <tr>
+                                                <th>Dateityp</th>
+                                                <td id="detail-filetype"></td>
+                                            </tr>
+                                            <tr>
+                                                <th>Größe</th>
+                                                <td id="detail-filesize"></td>
+                                            </tr>
+                                            <tr>
+                                                <th>Hochgeladen</th>
+                                                <td id="detail-uploaded"></td>
+                                            </tr>
+                                        </table>
                                     </div>
-                                    <p class="mt-2">Dokumente werden geladen...</p>
-                                </div>
-                                
-                                <!-- Documents table -->
-                                <div id="documents-table-container" class="d-none">
-                                    <div class="table-responsive">
-                                        <table class="table table-striped table-hover">
-                                            <thead>
-                                                <tr>
-                                                    <th>Dateiname</th>
-                                                    <th>Größe</th>
-                                                    <th>Chunks</th>
-                                                    <th>Aktionen</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="documents-table-body">
-                                                <!-- Documents will be populated dynamically -->
-                                            </tbody>
+                                    <div class="col-md-6">
+                                        <h6>Verarbeitung</h6>
+                                        <table class="table table-sm">
+                                            <tr>
+                                                <th>Anzahl Chunks</th>
+                                                <td id="detail-chunks"></td>
+                                            </tr>
+                                            <tr>
+                                                <th>Chunk-Größe</th>
+                                                <td id="detail-chunk-size"></td>
+                                            </tr>
+                                            <tr>
+                                                <th>Überlappung</th>
+                                                <td id="detail-overlap"></td>
+                                            </tr>
+                                            <tr>
+                                                <th>Verarbeitet am</th>
+                                                <td id="detail-processed"></td>
+                                            </tr>
                                         </table>
                                     </div>
                                 </div>
-                                
-                                <!-- Empty state -->
-                                <div id="no-documents" class="text-center py-4 d-none">
-                                    <i class="bi bi-file-earmark-x text-muted" style="font-size: 3rem;"></i>
-                                    <p class="mt-2">Keine Dokumente verfügbar. Laden Sie Dokumente hoch, um zu beginnen.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Document details section, initially hidden -->
-        <div class="row d-none" id="document-details-container">
-            <div class="col">
-                <div class="card">
-                    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
-                        <h3 class="h5 mb-0"><i class="bi bi-file-text"></i> <span id="document-title">Dokumentdetails</span></h3>
-                        <button type="button" class="btn-close btn-close-white" id="close-document-details"></button>
-                    </div>
-                    <div class="card-body">
-                        <!-- Document info -->
-                        <div class="mb-4">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h4 class="h6 mb-0">Dokumentinformationen</h4>
-                                <span class="badge bg-secondary" id="document-chunks">0 Chunks</span>
-                            </div>
-                            
-                            <!-- Document metadata -->
-                            <div class="row" id="document-metadata">
-                                <!-- Metadata will be populated dynamically -->
-                            </div>
-                        </div>
-                        
-                        <!-- Document chunks -->
-                        <div class="mb-4">
-                            <h4 class="h6 mb-3">Inhaltsabschnitte</h4>
-                            <div class="accordion" id="document-chunks-accordion">
-                                <!-- Chunks will be populated dynamically -->
-                            </div>
-                        </div>
-                        
-                        <!-- Keywords -->
-                        <div>
-                            <h4 class="h6 mb-3">Extrahierte Schlüsselwörter</h4>
-                            <div id="document-keywords">
-                                <!-- Keywords will be populated dynamically -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Document re-processing options -->
-        <div class="row mt-4">
-            <div class="col">
-                <div class="card">
-                    <div class="card-header bg-warning text-dark">
-                        <h3 class="h5 mb-0"><i class="bi bi-gear"></i> Dokumentenverarbeitung</h3>
-                    </div>
-                    <div class="card-body">
-                        <p>Steuern Sie, wie die Dokumente verarbeitet und indiziert werden.</p>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="chunk-size" class="form-label">Chunk-Größe (Zeichen):</label>
-                                    <input type="range" class="form-range" min="500" max="2000" step="100" value="1000" id="chunk-size">
-                                    <div class="d-flex justify-content-between">
-                                        <span>500</span>
-                                        <span id="chunk-size-value">1000</span>
-                                        <span>2000</span>
+                                <div class="row mt-3">
+                                    <div class="col-12">
+                                        <h6>Schlüsselwörter</h6>
+                                        <div id="detail-keywords"></div>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="chunk-overlap" class="form-label">Chunk-Überlappung (Zeichen):</label>
-                                    <input type="range" class="form-range" min="0" max="500" step="50" value="200" id="chunk-overlap">
-                                    <div class="d-flex justify-content-between">
-                                        <span>0</span>
-                                        <span id="chunk-overlap-value">200</span>
-                                        <span>500</span>
+                            <div class="tab-pane fade" id="content-tab">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <pre id="detail-content" style="max-height: 400px; overflow-y: auto;"></pre>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="text-center">
-                            <button class="btn btn-warning" id="reprocess-btn">
-                                <i class="bi bi-arrow-repeat"></i> Dokumente neu verarbeiten
-                            </button>
+                            <div class="tab-pane fade" id="chunks-tab">
+                                <div id="chunks-list" class="accordion"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
+                </div>
             </div>
         </div>
-    </main>
-
-    <footer class="bg-dark text-white py-3 mt-auto">
-        <div class="container text-center">
-            <p class="mb-0">© 2025 Dokumentenbasiertes QA & Churn-Prediction System</p>
-        </div>
-    </footer>
-
+    </div>
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/documents.js') }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Upload area functionality
+            const uploadArea = document.getElementById('upload-area');
+            const fileInput = document.getElementById('file-input');
+            const selectedFile = document.getElementById('selected-file');
+            const fileName = document.getElementById('file-name');
+            const fileSize = document.getElementById('file-size');
+            const removeFile = document.getElementById('remove-file');
+            const uploadForm = document.getElementById('upload-form');
+            const btnUpload = document.getElementById('btn-upload');
+            const uploadProgress = document.getElementById('upload-progress');
+            const progressBar = uploadProgress.querySelector('.progress-bar');
+            const chunkSize = document.getElementById('chunk-size');
+            const chunkSizeValue = document.getElementById('chunk-size-value');
+            const overlap = document.getElementById('overlap');
+            const overlapValue = document.getElementById('overlap-value');
+            const btnSaveSettings = document.getElementById('btn-save-settings');
+            const btnReprocess = document.getElementById('btn-reprocess');
+            const documentsTableBody = document.getElementById('documents-table-body');
+            const loadingDocuments = document.getElementById('loading-documents');
+            
+            // Initialize sliders
+            chunkSize.addEventListener('input', function() {
+                chunkSizeValue.textContent = this.value;
+            });
+            
+            overlap.addEventListener('input', function() {
+                overlapValue.textContent = this.value;
+            });
+            
+            // File upload handlers
+            uploadArea.addEventListener('click', () => {
+                fileInput.click();
+            });
+            
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                
+                if (e.dataTransfer.files.length) {
+                    handleFileSelect(e.dataTransfer.files[0]);
+                }
+            });
+            
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length) {
+                    handleFileSelect(e.target.files[0]);
+                }
+            });
+            
+            removeFile.addEventListener('click', () => {
+                clearFileSelection();
+            });
+            
+            function handleFileSelect(file) {
+                // Check file type
+                const validTypes = ['.pdf', '.docx', '.txt', '.md', '.html'];
+                const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+                
+                if (!validTypes.includes(fileExtension)) {
+                    alert('Ungültiger Dateityp. Bitte wählen Sie eine PDF, DOCX, TXT, MD oder HTML-Datei.');
+                    clearFileSelection();
+                    return;
+                }
+                
+                // Display file info
+                fileName.textContent = file.name;
+                fileSize.textContent = formatFileSize(file.size);
+                selectedFile.classList.remove('d-none');
+                btnUpload.disabled = false;
+                fileInput.files = e.dataTransfer ? e.dataTransfer.files : e.target.files;
+            }
+            
+            function clearFileSelection() {
+                fileInput.value = '';
+                selectedFile.classList.add('d-none');
+                btnUpload.disabled = true;
+            }
+            
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+            
+            // Submit form
+            uploadForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                
+                if (!fileInput.files.length) return;
+                
+                const file = fileInput.files[0];
+                const category = document.getElementById('category').value;
+                
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('category', category);
+                
+                // Show progress
+                uploadProgress.classList.remove('d-none');
+                btnUpload.disabled = true;
+                
+                // Simulate progress (in a real app, use XHR's progress event)
+                let progress = 0;
+                const progressInterval = setInterval(() => {
+                    progress += 5;
+                    if (progress > 90) clearInterval(progressInterval);
+                    progressBar.style.width = progress + '%';
+                }, 100);
+                
+                // Send request
+                fetch('/api/documents/upload', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    clearInterval(progressInterval);
+                    progressBar.style.width = '100%';
+                    
+                    setTimeout(() => {
+                        uploadProgress.classList.add('d-none');
+                        clearFileSelection();
+                        progressBar.style.width = '0%';
+                        
+                        if (data.error) {
+                            alert('Fehler: ' + data.error);
+                        } else {
+                            alert('Dokument erfolgreich hochgeladen: ' + data.document.filename);
+                            loadDocuments(); // Reload document list
+                        }
+                    }, 500);
+                })
+                .catch(error => {
+                    clearInterval(progressInterval);
+                    uploadProgress.classList.add('d-none');
+                    clearFileSelection();
+                    alert('Fehler beim Hochladen: ' + error.message);
+                });
+            });
+            
+            // Save settings
+            btnSaveSettings.addEventListener('click', () => {
+                const settings = {
+                    chunkSize: parseInt(chunkSize.value),
+                    overlap: parseInt(overlap.value)
+                };
+                
+                // Save settings via API (this would be implemented in a real app)
+                alert('Einstellungen gespeichert:\n- Chunk-Größe: ' + settings.chunkSize + '\n- Überlappung: ' + settings.overlap);
+            });
+            
+            // Reprocess documents
+            btnReprocess.addEventListener('click', () => {
+                if (!confirm('Möchten Sie alle Dokumente neu verarbeiten? Dies kann einige Zeit dauern.')) {
+                    return;
+                }
+                
+                btnReprocess.disabled = true;
+                btnReprocess.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Verarbeite...';
+                
+                fetch('/api/documents/process', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        forceReprocess: true
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    btnReprocess.disabled = false;
+                    btnReprocess.innerHTML = '<i class="bi bi-arrow-repeat"></i> Dokumente neu verarbeiten';
+                    
+                    if (data.error) {
+                        alert('Fehler: ' + data.error);
+                    } else {
+                        alert('Dokumente erfolgreich neu verarbeitet.');
+                    }
+                })
+                .catch(error => {
+                    btnReprocess.disabled = false;
+                    btnReprocess.innerHTML = '<i class="bi bi-arrow-repeat"></i> Dokumente neu verarbeiten';
+                    alert('Fehler bei der Verarbeitung: ' + error.message);
+                });
+            });
+            
+            // Load documents
+            function loadDocuments() {
+                loadingDocuments.classList.remove('d-none');
+                documentsTableBody.innerHTML = '';
+                
+                fetch('/api/documents')
+                .then(response => response.json())
+                .then(data => {
+                    loadingDocuments.classList.add('d-none');
+                    
+                    if (data.error) {
+                        documentsTableBody.innerHTML = `<tr><td colspan="4" class="text-center text-danger">${data.error}</td></tr>`;
+                        return;
+                    }
+                    
+                    if (!data.length) {
+                        documentsTableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Keine Dokumente vorhanden</td></tr>';
+                        return;
+                    }
+                    
+                    data.forEach(doc => {
+                        let iconClass = 'bi-file-earmark text-secondary';
+                        if (doc.file_type === 'pdf') iconClass = 'bi-file-pdf text-danger';
+                        else if (doc.file_type === 'docx') iconClass = 'bi-file-word text-primary';
+                        else if (doc.file_type === 'txt') iconClass = 'bi-file-text text-secondary';
+                        
+                        const row = document.createElement('tr');
+                        row.className = 'document-row';
+                        row.dataset.id = doc.id;
+                        
+                        row.innerHTML = `
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <i class="bi ${iconClass} document-icon"></i>
+                                    <div>
+                                        <div>${doc.filename}</div>
+                                        <small class="text-muted">Hinzugefügt: ${doc.upload_date}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>${doc.category || 'Allgemein'}</td>
+                            <td>${formatFileSize(doc.size)}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-info view-document" data-id="${doc.id}">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger delete-document" data-id="${doc.id}">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        `;
+                        
+                        documentsTableBody.appendChild(row);
+                    });
+                    
+                    // Add event listeners to new buttons
+                    addDocumentButtonListeners();
+                })
+                .catch(error => {
+                    loadingDocuments.classList.add('d-none');
+                    documentsTableBody.innerHTML = `<tr><td colspan="4" class="text-center text-danger">Fehler beim Laden der Dokumente: ${error.message}</td></tr>`;
+                });
+            }
+            
+            // Initial load of documents
+            if (documentsTableBody) {
+                // Only load if we're not using server-side rendering data
+                if (documentsTableBody.querySelectorAll('tr').length === 0 || 
+                    documentsTableBody.querySelector('tr td').textContent === 'Keine Dokumente vorhanden') {
+                    loadDocuments();
+                } else {
+                    // Add event listeners to existing buttons
+                    addDocumentButtonListeners();
+                }
+            }
+            
+            function addDocumentButtonListeners() {
+                // View document details
+                document.querySelectorAll('.view-document').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const documentId = this.dataset.id;
+                        showDocumentDetails(documentId);
+                    });
+                });
+                
+                // Delete document
+                document.querySelectorAll('.delete-document').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const documentId = this.dataset.id;
+                        if (confirm('Sind Sie sicher, dass Sie dieses Dokument löschen möchten?')) {
+                            deleteDocument(documentId);
+                        }
+                    });
+                });
+            }
+            
+            // Show document details in modal
+            function showDocumentDetails(documentId) {
+                const modal = new bootstrap.Modal(document.getElementById('documentDetailModal'));
+                const documentDetailLoader = document.getElementById('document-detail-loader');
+                const documentDetailContent = document.getElementById('document-detail-content');
+                
+                // Reset and show modal
+                documentDetailLoader.classList.remove('d-none');
+                documentDetailContent.classList.add('d-none');
+                modal.show();
+                
+                // In a real app, fetch document details by ID
+                // For now, just simulate loading and show mock data
+                setTimeout(() => {
+                    documentDetailLoader.classList.add('d-none');
+                    documentDetailContent.classList.remove('d-none');
+                    
+                    // Fill with mock data (in a real app, use actual document data)
+                    document.getElementById('detail-filename').textContent = 'Beispieldokument.pdf';
+                    document.getElementById('detail-category').textContent = 'Churn-Prediction';
+                    document.getElementById('detail-filetype').textContent = 'PDF';
+                    document.getElementById('detail-filesize').textContent = '1.2 MB';
+                    document.getElementById('detail-uploaded').textContent = '2023-07-15 14:30';
+                    document.getElementById('detail-chunks').textContent = '12';
+                    document.getElementById('detail-chunk-size').textContent = '1000 Zeichen';
+                    document.getElementById('detail-overlap').textContent = '200 Zeichen';
+                    document.getElementById('detail-processed').textContent = '2023-07-15 14:32';
+                    
+                    // Keywords
+                    document.getElementById('detail-keywords').innerHTML = `
+                        <span class="badge bg-primary me-1">Churn</span>
+                        <span class="badge bg-primary me-1">Customer</span>
+                        <span class="badge bg-primary me-1">Retention</span>
+                        <span class="badge bg-primary me-1">Prediction</span>
+                        <span class="badge bg-primary me-1">Analytics</span>
+                    `;
+                    
+                    // Document content sample
+                    document.getElementById('detail-content').textContent = 
+                        `Dies ist ein Beispielinhalt des Dokuments zur Churn-Prediction.
+                        
+Es enthält Informationen darüber, wie man Kundenfluktuation vorhersagen und verhindern kann.
+                        
+Der Text würde hier in vollständiger Form angezeigt werden.`;
+                    
+                    // Chunks
+                    const chunksList = document.getElementById('chunks-list');
+                    chunksList.innerHTML = '';
+                    
+                    for (let i = 0; i < 5; i++) {
+                        const chunk = document.createElement('div');
+                        chunk.className = 'accordion-item';
+                        chunk.innerHTML = `
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                        data-bs-target="#chunk-${i}">
+                                    Chunk ${i+1}
+                                </button>
+                            </h2>
+                            <div id="chunk-${i}" class="accordion-collapse collapse">
+                                <div class="accordion-body">
+                                    <p>Dies ist der Inhalt von Chunk ${i+1}. In einem realen System würde hier der tatsächliche Text des Chunks angezeigt werden.</p>
+                                </div>
+                            </div>
+                        `;
+                        chunksList.appendChild(chunk);
+                    }
+                }, 1000);
+            }
+            
+            // Delete a document
+            function deleteDocument(documentId) {
+                // In a real app, send a DELETE request to the server
+                // For now, just simulate deletion
+                alert('Dokument mit ID ' + documentId + ' würde gelöscht werden.');
+                
+                // Remove from DOM for demo purposes
+                const row = document.querySelector(`.document-row[data-id="${documentId}"]`);
+                if (row) row.remove();
+                
+                // If no documents left, show empty message
+                if (documentsTableBody.children.length === 0) {
+                    documentsTableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Keine Dokumente vorhanden</td></tr>';
+                }
+            }
+        });
+    </script>
 </body>
 </html>
