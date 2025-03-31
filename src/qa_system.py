@@ -70,6 +70,9 @@ class DocumentQA:
         # Load pre-processed data if available
         if processed_data_dir:
             self.doc_processor.load_processed_data(processed_data_dir)
+            
+        # Track document citation history
+        self.citation_history = []
     
     def process_documents(self, docs_dir: str, save_dir: Optional[str] = None):
         """
@@ -209,13 +212,14 @@ class DocumentQA:
             "score": float(torch.max(start_scores).item() + torch.max(end_scores).item()) / 2
         }
     
-    def generate_answer(self, question: str, contexts: List[str]) -> Dict:
+    def generate_answer(self, question: str, contexts: List[str], documents: List[Dict]) -> Dict:
         """
-        Generate an answer using the T5 generation model.
+        Generate an answer using the T5 generation model with improved source tracking.
         
         Args:
             question: The question text
             contexts: List of context texts
+            documents: The original document dictionaries
             
         Returns:
             Dictionary with generated answer and metadata
@@ -264,20 +268,97 @@ class DocumentQA:
         # Sometimes T5 repeats the question or context, remove it if possible
         answer_text = answer_text.replace(question, "").strip()
         
+        # Track which documents contributed to the answer
+        contributing_docs = []
+        for i, (doc, context) in enumerate(zip(documents, contexts)):
+            doc_contribution = self._compute_document_contribution(answer_text, context)
+            if doc_contribution > 0.1:  # Document contributed meaningfully
+                documents[i]["contribution_score"] = doc_contribution
+                contributing_docs.append(documents[i])
+        
+        if not contributing_docs:
+            contributing_docs = documents[:2]  # Use top 2 documents if no clear contributions
+        
         return {
             "answer": answer_text,
             "score": 1.0,  # No confidence score for generation
-            "is_generated": True
+            "is_generated": True,
+            "contributing_docs": contributing_docs
         }
     
-    def answer_question(self, question: str, top_k: int = 5, use_generation: bool = True) -> Dict:
+    def _compute_document_contribution(self, answer: str, context: str) -> float:
         """
-        Answer a question using the document-based QA system.
+        Compute how much a document contributed to the answer.
+        
+        Args:
+            answer: The generated answer
+            context: The document context
+            
+        Returns:
+            Score between 0 and 1 indicating contribution level
+        """
+        # Simple method: Calculate sentence overlap
+        answer_sentences = re.split(r'[.!?]', answer)
+        context_sentences = re.split(r'[.!?]', context)
+        
+        # Clean sentences
+        answer_sentences = [s.strip() for s in answer_sentences if len(s.strip()) > 10]
+        context_sentences = [s.strip() for s in context_sentences if len(s.strip()) > 10]
+        
+        if not answer_sentences or not context_sentences:
+            return 0.0
+        
+        # Count overlapping content
+        overlap_count = 0
+        for a_sent in answer_sentences:
+            for c_sent in context_sentences:
+                # Check for significant overlap
+                if (a_sent in c_sent or c_sent in a_sent or
+                    self._sentence_similarity(a_sent, c_sent) > 0.7):
+                    overlap_count += 1
+                    break
+        
+        contribution_score = overlap_count / len(answer_sentences)
+        return min(1.0, contribution_score)
+    
+    def _sentence_similarity(self, sent1: str, sent2: str) -> float:
+        """
+        Compute similarity between two sentences using token overlap.
+        
+        Args:
+            sent1: First sentence
+            sent2: Second sentence
+            
+        Returns:
+            Similarity score between 0 and 1
+        """
+        # Simple word overlap for efficiency
+        words1 = set(sent1.lower().split())
+        words2 = set(sent2.lower().split())
+        
+        # Remove stopwords
+        stopwords = {"the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "with", "by", "is", "are"}
+        words1 = words1 - stopwords
+        words2 = words2 - stopwords
+        
+        if not words1 or not words2:
+            return 0.0
+            
+        intersection = words1.intersection(words2)
+        union = words1.union(words2)
+        
+        return len(intersection) / len(union)
+    
+    def answer_question(self, question: str, top_k: int = 5, use_generation: bool = True, 
+                        track_sources: bool = True) -> Dict:
+        """
+        Answer a question using the document-based QA system with improved source tracking.
         
         Args:
             question: The question to answer
             top_k: Number of documents to retrieve
             use_generation: Whether to use the generation model
+            track_sources: Whether to track and record document sources
             
         Returns:
             Dictionary with answer, sources, and metadata
@@ -301,35 +382,34 @@ class DocumentQA:
             # Get context texts
             contexts = [doc["text"] for doc in reranked_docs]
             
-            # Generate answer
-            answer_data = self.generate_answer(question, contexts)
+            # Generate answer with source tracking
+            answer_data = self.generate_answer(question, contexts, reranked_docs)
             
-            # Find which documents contributed to the answer
+            # Get contributing documents
+            contributing_docs = answer_data.get("contributing_docs", reranked_docs)
             answer_text = answer_data["answer"]
-            contributing_docs = []
             
-            for doc in reranked_docs:
-                # Check if significant parts of the doc appear in the answer
-                doc_sentences = re.split(r'[.!?]', doc["text"])
-                for sentence in doc_sentences:
-                    if len(sentence) > 30 and sentence.strip() in answer_text:
-                        doc["contribution"] = sentence.strip()
-                        contributing_docs.append(doc)
-                        break
-            
-            # If no specific contributions found, use all docs
-            if not contributing_docs:
-                contributing_docs = reranked_docs
-            
-            # Format sources
+            # Format sources with improved details
             sources = []
             for doc in contributing_docs:
+                # Extract relevant section that matches parts of the answer
+                doc_sentences = re.split(r'[.!?]', doc["text"])
+                matching_sentences = []
+                
+                for sentence in doc_sentences:
+                    sentence = sentence.strip()
+                    if len(sentence) > 20 and (sentence in answer_text or 
+                                               self._sentence_similarity(sentence, answer_text) > 0.5):
+                        matching_sentences.append(sentence)
+                
+                # Create source entry with detailed information
                 source = {
                     "source": doc["source"],
                     "section": doc.get("section", ""),
                     "filename": doc["filename"],
-                    "relevance_score": doc["combined_score"],
-                    "contribution": doc.get("contribution", "")
+                    "relevance_score": doc.get("combined_score", 0.5),
+                    "contribution_score": doc.get("contribution_score", 0.5),
+                    "matching_sentences": matching_sentences[:3]  # Limit to top 3 matching sentences
                 }
                 sources.append(source)
             
@@ -357,11 +437,22 @@ class DocumentQA:
                     "source": answer["source"],
                     "section": answer["section"],
                     "filename": answer["filename"],
-                    "relevance_score": answer["relevance_score"]
+                    "relevance_score": answer["relevance_score"],
+                    "matching_sentences": []  # Empty for extractive QA
                 }
                 sources.append(source)
             
             answer_text = best_answer["answer"]
+        
+        # Record citation for history if tracking is enabled
+        if track_sources:
+            citation_record = {
+                "question": question,
+                "answer": answer_text,
+                "sources": [{"filename": src["filename"], "score": src["relevance_score"]} for src in sources],
+                "timestamp": time.time()
+            }
+            self.citation_history.append(citation_record)
         
         # Prepare response
         response = {
@@ -397,8 +488,196 @@ class DocumentQA:
             if section:
                 formatted_answer += f" - Section: {section}"
             formatted_answer += f" (Relevance: {score:.2f})\n"
+            
+            # Add matching sentences if available
+            matching_sentences = source.get("matching_sentences", [])
+            if matching_sentences:
+                formatted_answer += "   Evidence:\n"
+                for j, sentence in enumerate(matching_sentences):
+                    formatted_answer += f"   - {sentence[:100]}{'...' if len(sentence) > 100 else ''}\n"
         
         return formatted_answer
+    
+    def get_citation_history(self) -> List[Dict]:
+        """
+        Get the history of document citations.
+        
+        Returns:
+            List of citation records
+        """
+        return self.citation_history
+
+
+class ChurnQASystem(DocumentQA):
+    """Specialized QA system for Churn Prediction questions"""
+    
+    def __init__(
+        self,
+        embedding_model_name: str = "sentence-transformers/all-mpnet-base-v2",
+        qa_model_name: str = "deepset/gbert-base",
+        generation_model_name: str = "google/flan-t5-base",
+        processed_data_dir: Optional[str] = None,
+        churn_model: Optional[ChurnModel] = None
+    ):
+        """
+        Initialize the churn prediction QA system.
+        
+        Args:
+            embedding_model_name: Model for document embeddings
+            qa_model_name: Model for extractive question answering
+            generation_model_name: Model for answer generation
+            processed_data_dir: Optional directory with pre-processed data
+            churn_model: Optional churn prediction model
+        """
+        super().__init__(
+            embedding_model_name=embedding_model_name,
+            qa_model_name=qa_model_name,
+            generation_model_name=generation_model_name,
+            processed_data_dir=processed_data_dir
+        )
+        
+        self.churn_model = churn_model
+        
+        # Define common churn-related queries for query enhancement
+        self.churn_query_templates = {
+            "was ist churn": [
+                "definiere churn prediction",
+                "erkläre kundenabwanderung",
+                "was bedeutet kundenfluktuation"
+            ],
+            "algorithmen für churn": [
+                "welche machine learning algorithmen für churn prediction",
+                "modelle zur vorhersage von kundenabwanderung",
+                "beste algorithmen für kündigungsvorhersage"
+            ],
+            "features für churn": [
+                "wichtige merkmale für churn prediction",
+                "relevante daten für kündigungsvorhersage",
+                "feature engineering für kundenbindung"
+            ]
+        }
+    
+    def predict_churn(self, customer_data: pd.DataFrame) -> pd.DataFrame:
+        """
+        Make churn predictions for customer data.
+        
+        Args:
+            customer_data: DataFrame with customer data
+            
+        Returns:
+            DataFrame with predictions and explanations
+        """
+        if self.churn_model is None:
+            raise ValueError("No churn model available. Initialize with a ChurnModel instance.")
+        
+        # Make predictions
+        predictions = self.churn_model.predict(customer_data)
+        
+        # Add document references for explanations
+        for i, row in predictions.iterrows():
+            risk_level = row["risk_category"]
+            
+            # Query documents for explanation based on risk level
+            if risk_level == "Hohes Risiko":
+                query = "Wie geht man mit Kunden mit hohem Abwanderungsrisiko um?"
+            elif risk_level == "Mittleres Risiko":
+                query = "Maßnahmen für Kunden mit mittlerem Abwanderungsrisiko"
+            else:
+                query = "Standardbetreuung für Kunden mit niedrigem Abwanderungsrisiko"
+            
+            # Get document references
+            response = self.answer_question(query, top_k=2, use_generation=False, track_sources=False)
+            
+            # Add explanation and document sources
+            if response["sources"]:
+                source_docs = [s["filename"] for s in response["sources"]]
+                predictions.at[i, "explanation_docs"] = ", ".join(source_docs)
+        
+        return predictions
+    
+    def enhance_query(self, query: str) -> List[str]:
+        """
+        Enhance a query with churn-specific variations.
+        
+        Args:
+            query: The original query
+            
+        Returns:
+            List of query variations
+        """
+        query_lower = query.lower()
+        variations = [query]
+        
+        # Check for matches with templates
+        for template, template_variations in self.churn_query_templates.items():
+            if template in query_lower or any(v in query_lower for v in template_variations):
+                variations.extend(template_variations)
+                break
+        
+        # Add general variations
+        if "was ist" in query_lower:
+            variations.append(query_lower.replace("was ist", "definiere"))
+            variations.append(query_lower.replace("was ist", "erkläre"))
+        elif "wie funktioniert" in query_lower:
+            variations.append(query_lower.replace("wie funktioniert", "beschreibe"))
+            variations.append(query_lower.replace("wie funktioniert", "erkläre die funktionsweise von"))
+        
+        # Remove duplicates and limit
+        return list(dict.fromkeys(variations))[:5]  # Keep unique and limit to 5
+    
+    def answer_churn_question(self, question: str, top_k: int = 5) -> Dict:
+        """
+        Answer a churn-related question with domain-specific enhancements.
+        
+        Args:
+            question: The question to answer
+            top_k: Number of documents to retrieve
+            
+        Returns:
+            Enhanced answer with sources and churn-specific context
+        """
+        # Generate query variations
+        query_variations = self.enhance_query(question)
+        
+        # Get answers for each variation
+        all_answers = []
+        all_sources = []
+        
+        for query in query_variations:
+            response = self.answer_question(query, top_k=top_k)
+            
+            if response["answer"] != "I couldn't find any relevant documents to answer this question.":
+                all_answers.append(response["answer"])
+                all_sources.extend(response["sources"])
+        
+        # Combine and deduplicate sources
+        unique_sources = []
+        source_keys = set()
+        
+        for source in all_sources:
+            key = f"{source['source']}:{source.get('section', '')}"
+            if key not in source_keys:
+                source_keys.add(key)
+                unique_sources.append(source)
+        
+        # Sort sources by relevance
+        unique_sources.sort(key=lambda x: x["relevance_score"], reverse=True)
+        
+        # Take the best answer or combine them
+        if all_answers:
+            final_answer = all_answers[0]
+        else:
+            final_answer = "I couldn't find relevant information to answer this question."
+        
+        # Create response
+        response = {
+            "answer": final_answer,
+            "sources": unique_sources[:5],  # Limit to top 5 sources
+            "query_variations": query_variations,
+            "processing_time": 0
+        }
+        
+        return response
 
 
 class DocumentQueryEngine:
@@ -571,6 +850,13 @@ def main():
     multiqa_parser.add_argument("--processed_dir", help="Directory with processed data")
     multiqa_parser.add_argument("--variations", type=int, default=3, help="Number of query variations")
     
+    # Churn QA
+    churn_parser = subparsers.add_parser("churn", help="Answer churn-specific questions")
+    churn_parser.add_argument("--query", required=True, help="Churn-related question")
+    churn_parser.add_argument("--docs_dir", help="Directory with documents")
+    churn_parser.add_argument("--processed_dir", help="Directory with processed data")
+    churn_parser.add_argument("--top_k", type=int, default=5, help="Number of documents to retrieve")
+    
     args = parser.parse_args()
     
     if args.command == "process":
@@ -619,6 +905,24 @@ def main():
         
         # Answer with multiple query variations
         response = query_engine.multi_query(args.query, num_variations=args.variations)
+        
+        # Format and print answer
+        formatted_answer = qa.format_answer_with_sources(response)
+        print(formatted_answer)
+    
+    elif args.command == "churn":
+        # Initialize specialized churn QA system
+        qa = ChurnQASystem(processed_data_dir=args.processed_dir)
+        
+        # Process documents if needed
+        if args.docs_dir and not qa.doc_processor.document_store:
+            qa.process_documents(args.docs_dir)
+        
+        # Answer churn-specific question
+        response = qa.answer_churn_question(args.query, top_k=args.top_k)
+        
+        # Print query variations
+        print(f"Query variations: {', '.join(response['query_variations'])}\n")
         
         # Format and print answer
         formatted_answer = qa.format_answer_with_sources(response)
