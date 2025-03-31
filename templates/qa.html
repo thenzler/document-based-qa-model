@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Frage & Antwort - Dokumentenbasiertes QA-System</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
         .source-card {
             margin-bottom: 10px;
@@ -215,7 +216,7 @@
             // Handle recent question clicks
             document.querySelectorAll('.recent-question').forEach(item => {
                 item.addEventListener('click', function() {
-                    questionInput.value = this.textContent;
+                    questionInput.value = this.textContent.trim();
                     questionInput.focus();
                 });
             });
@@ -245,6 +246,9 @@
                     topK: parseInt(topKSlider.value)
                 };
                 
+                // Log the request data to help with debugging
+                console.log('Sending request:', requestData);
+                
                 // Send request
                 fetch('/api/qa/answer', {
                     method: 'POST',
@@ -253,8 +257,18 @@
                     },
                     body: JSON.stringify(requestData)
                 })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        // Log information about the error
+                        console.error('Response error:', response.status, response.statusText);
+                        throw new Error(`${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
+                    // Log the received data to help with debugging
+                    console.log('Received data:', data);
+                    
                     // Hide loading
                     loadingIndicator.classList.add('d-none');
                     resultCard.classList.remove('d-none');
@@ -269,13 +283,15 @@
                         answerText.textContent = data.answer;
                         
                         // Show processing time
-                        processingTime.textContent = `Verarbeitungszeit: ${data.processingTime.toFixed(2)} Sekunden`;
+                        if (data.processingTime) {
+                            processingTime.textContent = `Verarbeitungszeit: ${data.processingTime.toFixed(2)} Sekunden`;
+                        }
                         
                         // Show sources
                         if (data.sources && data.sources.length > 0) {
                             let sourcesHtml = '';
                             data.sources.forEach((source, index) => {
-                                const filename = source.filename || source.source.split('/').pop();
+                                const filename = source.filename || (source.source ? source.source.split('/').pop() : 'Unbekannt');
                                 const relevanceScore = source.relevanceScore || source.relevance_score || 0;
                                 const section = source.section || '';
                                 const sentences = source.matchingSentences || [];
@@ -302,12 +318,12 @@
                         newItem.className = 'list-group-item list-group-item-action recent-question';
                         newItem.textContent = question;
                         newItem.addEventListener('click', function() {
-                            questionInput.value = this.textContent;
+                            questionInput.value = this.textContent.trim();
                             questionInput.focus();
                         });
                         
                         if (recentQuestionsList.children.length > 0 && 
-                            recentQuestionsList.children[0].textContent === 'Keine kürzlichen Fragen') {
+                            recentQuestionsList.children[0].textContent.trim() === 'Keine kürzlichen Fragen') {
                             recentQuestionsList.innerHTML = '';
                         }
                         
@@ -319,6 +335,7 @@
                 })
                 .catch(error => {
                     // Handle errors
+                    console.error('Fetch error:', error);
                     loadingIndicator.classList.add('d-none');
                     resultCard.classList.remove('d-none');
                     answerText.innerHTML = `<div class="alert alert-danger">Fehler bei der Anfrage: ${error.message}</div>`;
