@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Churn-Prediction | Dokumentenbasiertes QA</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header class="bg-primary text-white py-3">
+        <div class="container">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-book me-3 fs-2"></i>
+                <h1>Dokumentenbasiertes QA & Churn-Prediction</h1>
+            </div>
+        </div>
+    </header>
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/"><i class="bi bi-house-door"></i> Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/qa"><i class="bi bi-question-circle"></i> Frage & Antwort</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/churn"><i class="bi bi-graph-up"></i> Churn-Prediction</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/documents"><i class="bi bi-file-text"></i> Dokumente</a>
+                    </li>
+                </ul>
+            </div>
+            <div class="status-indicator" id="status-indicator">
+                <div class="spinner-border spinner-border-sm text-light me-2 d-none" id="status-spinner" role="status"></div>
+                <span id="status-text">Initialisierung...</span>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container my-4">
+        <div class="row mb-4">
+            <div class="col">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h2 class="h4 mb-0"><i class="bi bi-graph-up"></i> Churn-Prediction mit Dokumentreferenzen</h2>
+                    </div>
+                    <div class="card-body">
+                        <p>Analysieren Sie Kundendaten und identifizieren Sie Abwanderungsrisiken. Das System berechnet die Abwanderungswahrscheinlichkeit und liefert dokumentenbasierte Handlungsempfehlungen.</p>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header bg-light">
+                                        <h3 class="h5 mb-0">1. Daten auswählen</h3>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="data-source" id="sample-data" checked>
+                                                <label class="form-check-label" for="sample-data">
+                                                    Beispieldaten verwenden
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="data-source" id="custom-data">
+                                                <label class="form-check-label" for="custom-data">
+                                                    Eigene Daten hochladen
+                                                </label>
+                                            </div>
+                                        </div>
+                                        
+                                        <div id="upload-container" class="d-none">
+                                            <div class="input-group mb-3">
+                                                <input type="file" class="form-control" id="csv-upload" accept=".csv">
+                                                <button class="btn btn-outline-secondary" type="button" id="upload-btn">
+                                                    <i class="bi bi-upload"></i> Hochladen
+                                                </button>
+                                            </div>
+                                            <div class="form-text mb-3">CSV-Datei mit Kundendaten (enthält: customer_id, alter, vertragsdauer, nutzungsfrequenz, etc.)</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header bg-light">
+                                        <h3 class="h5 mb-0">2. Vorhersage durchführen</h3>
+                                    </div>
+                                    <div class="card-body">
+                                        <p>Starten Sie die Analyse, um die Churn-Wahrscheinlichkeit für die Kunden zu berechnen.</p>
+                                        <button class="btn btn-success w-100" id="predict-btn">
+                                            <i class="bi bi-play-fill"></i> Churn-Vorhersage starten
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Data preview table -->
+                        <div id="data-preview-container" class="mb-4">
+                            <h3 class="h5 mb-3">Datenvorschau:</h3>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered table-hover">
+                                    <thead id="data-preview-header">
+                                        <!-- Table header will be populated dynamically -->
+                                    </thead>
+                                    <tbody id="data-preview-body">
+                                        <!-- Table body will be populated dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results section, initially hidden -->
+        <div class="row mb-4 d-none" id="results-container">
+            <div class="col">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="h5 mb-0"><i class="bi bi-bar-chart"></i> Churn-Vorhersageergebnisse</h3>
+                    </div>
+                    <div class="card-body">
+                        <!-- Loading spinner, shown during processing -->
+                        <div id="prediction-loading" class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Wird geladen...</span>
+                            </div>
+                            <p class="mt-2">Analysiere Kundendaten und berechne Abwanderungsrisiko...</p>
+                        </div>
+                        
+                        <!-- Results summary -->
+                        <div id="results-summary" class="mb-4 d-none">
+                            <div class="row text-center">
+                                <div class="col-md-4">
+                                    <div class="card bg-danger text-white mb-3">
+                                        <div class="card-body">
+                                            <h5 class="card-title">Hohes Risiko</h5>
+                                            <p class="display-4" id="high-risk-count">0</p>
+                                            <p class="mb-0">Kunden</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card bg-warning text-dark mb-3">
+                                        <div class="card-body">
+                                            <h5 class="card-title">Mittleres Risiko</h5>
+                                            <p class="display-4" id="medium-risk-count">0</p>
+                                            <p class="mb-0">Kunden</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card bg-success text-white mb-3">
+                                        <div class="card-body">
+                                            <h5 class="card-title">Niedriges Risiko</h5>
+                                            <p class="display-4" id="low-risk-count">0</p>
+                                            <p class="mb-0">Kunden</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Detailed results -->
+                        <div id="detailed-results" class="d-none">
+                            <h3 class="h5 mb-3">Detaillierte Ergebnisse:</h3>
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Kunden-ID</th>
+                                            <th>Risikokategorie</th>
+                                            <th>Abwanderungswahrsch.</th>
+                                            <th>Risikofaktoren</th>
+                                            <th>Maßnahmen</th>
+                                            <th>Details</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="results-table-body">
+                                        <!-- Results will be populated dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Customer details modal -->
+        <div class="modal fade" id="customer-details-modal" tabindex="-1" aria-labelledby="customerDetailsModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="customerDetailsModalLabel">Kundendetails</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Kundeninformationen</h6>
+                                <div id="customer-info">
+                                    <!-- Customer info will be populated dynamically -->
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Abwanderungsrisiko</h6>
+                                <div class="progress mb-3">
+                                    <div id="customer-risk-bar" class="progress-bar" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                                </div>
+                                <div id="risk-details">
+                                    <!-- Risk details will be populated dynamically -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Risikofaktoren</h6>
+                                <ul id="risk-factors-list" class="list-group">
+                                    <!-- Risk factors will be populated dynamically -->
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Empfohlene Maßnahmen</h6>
+                                <div id="interventions">
+                                    <!-- Interventions will be populated dynamically -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <h6>Dokumentreferenzen</h6>
+                        <div id="document-references">
+                            <!-- Document references will be populated dynamically -->
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-dark text-white py-3 mt-auto">
+        <div class="container text-center">
+            <p class="mb-0">© 2025 Dokumentenbasiertes QA & Churn-Prediction System</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/churn.js') }}"></script>
+</body>
+</html>
