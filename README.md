@@ -1,139 +1,123 @@
-# Dokumentenbasiertes Frage-Antwort-System für Churn Prediction
+# Dokumentenbasiertes Frage-Antwort-System mit Churn-Prediction
 
-Dieses Repository enthält ein Machine Learning Modell, das auf Dokumenten und Text trainiert werden kann, um Fragen zu beantworten und die zur Beantwortung verwendeten Quellen nachzuverfolgen. Als Anwendungsbeispiel wird ein Churn-Prediction-Modell implementiert.
+Ein Machine Learning Modell für dokumentenbasierte Frage-Antwort-Systeme mit Churn-Prediction als Anwendungsbeispiel. 
 
-## Überblick
+Das System nutzt Natural Language Processing (NLP), um auf Basis von Dokumenten Fragen zu beantworten und enthält ein Modul zur Kundenfluktuation-Vorhersage (Churn-Prediction).
 
-Das System kombiniert moderne NLP-Techniken mit Information Retrieval, um:
+## Funktionen
 
-1. Dokumente zu indexieren und zu speichern
-2. Relevante Dokumente für eine Abfrage zu finden
-3. Antworten aus diesen Dokumenten zu extrahieren oder zu generieren
-4. Die Quelldokumente für die Antworten nachzuverfolgen und zu zitieren
+Das System bietet folgende Hauptfunktionen:
 
-Die Hauptfunktionen umfassen:
+1. **Dokumentenbasiertes Frage-Antwort-System**:
+   - Dokumente in verschiedenen Formaten einlesen und verarbeiten (PDF, DOCX, TXT, MD, HTML)
+   - Dokumente in Abschnitte und Chunks unterteilen
+   - Semantische Suche nach relevanten Passagen
+   - Generieren von Antworten auf Fragen basierend auf den Dokumentinhalten
 
-- **Dokumentenverarbeitung**: Unterstützung verschiedener Dateiformate (Text, PDF, DOCX, etc.)
-- **Semantische Suche**: Auffinden relevanter Dokumente basierend auf Ähnlichkeit und Schlüsselwörtern
-- **Antwortgenerierung**: Extraktion oder Generierung von Antworten aus relevanten Dokumenten
-- **Quellennachweis**: Nachverfolgung der Dokumentquellen für jede Antwort
-- **Churn-Prediction**: Vorhersage von Kundenabwanderung mit erklärbaren Ergebnissen
+2. **Churn-Prediction**:
+   - Machine Learning Modell zur Vorhersage von Kundenabwanderung
+   - Identifikation von Risikofaktoren
+   - Vorschläge für Maßnahmen basierend auf den Dokumenten
+   - Visualisierung der Ergebnisse
 
-## Projektstruktur
-
-```
-.
-├── data/
-│   ├── churn_docs/         # Dokumente mit Informationen über Churn Prediction
-│   ├── processed/          # Vorverarbeitete und indizierte Dokumente
-│   └── customer_data.csv   # Beispieldaten für Churn-Prediction
-│
-├── models/                 # Gespeicherte Modelle
-│
-├── src/
-│   ├── data_processing.py  # Dokumentenverarbeitung und Indexierung
-│   ├── model_training.py   # Modelltraining für Churn Prediction und QA
-│   ├── qa_system.py        # Implementierung des Frage-Antwort-Systems
-│   └── demo.py             # Demonstrationsscript
-│
-└── README.md
-```
+3. **Web-Benutzeroberfläche**:
+   - Intuitive Benutzeroberfläche für alle Funktionen
+   - Datei-Upload und -Management
+   - Visualisierung der Ergebnisse
+   - Anpassbare Einstellungen
 
 ## Installation
 
-```bash
-# Repository klonen
-git clone https://github.com/thenzler/document-based-qa-model.git
-cd document-based-qa-model
+### Voraussetzungen
 
-# Abhängigkeiten installieren
-pip install -r requirements.txt
-```
+- Python 3.8 oder höher
+- pip (Python Package Manager)
 
-## Schnellstart
+### Installation der Abhängigkeiten
 
-Führen Sie das Demo-Script aus, um das System in Aktion zu sehen:
+1. Klone das Repository:
+   ```bash
+   git clone https://github.com/thenzler/document-based-qa-model.git
+   cd document-based-qa-model
+   ```
 
-```bash
-python src/demo.py
-```
+2. Installiere die Abhängigkeiten:
+   ```bash
+   pip install -r requirements.txt  # Für die grundlegenden Funktionen
+   pip install -r requirements-ui.txt  # Für die Web-UI
+   ```
 
-Das Demo zeigt:
-1. Wie Dokumente verarbeitet werden
-2. Wie Fragen zu Churn Prediction beantwortet werden
-3. Wie Quellen für die Antworten nachverfolgt werden
-4. Wie Churn-Vorhersagen mit Erklärungen und Dokumentenreferenzen gemacht werden
+### Erste Schritte
 
-## Verwendung
+1. Starte die Anwendung:
+   ```bash
+   python app.py
+   ```
 
-### Verarbeitung von Dokumenten
+2. Öffne einen Browser und navigiere zu:
+   ```
+   http://localhost:5000
+   ```
 
-```bash
-python src/demo.py --docs_dir path/to/documents --processed_dir path/to/save --force_reprocess
-```
+3. Folge den Anweisungen auf der Startseite, um das System zu initialisieren und Dokumente hochzuladen.
 
-### Beantworten von Fragen mit Quellennachweis
+## Nutzung
 
-```bash
-# Interaktiver Modus
-python src/demo.py --interactive
+### Dokumentenbasiertes Frage-Antwort-System
 
-# Direkte Frage
-python src/qa_system.py qa --query "Was ist Churn Prediction?" --docs_dir data/churn_docs --explain
-```
+1. Navigiere zum Bereich "Frage & Antwort"
+2. Gib eine Frage ein, die basierend auf deinen Dokumenten beantwortet werden soll
+3. Das System sucht nach relevanten Passagen und generiert eine Antwort mit Quellenangaben
 
-### Churn Prediction mit Dokumentreferenzen
+### Churn-Prediction
 
-Im interaktiven Modus können Sie sowohl Fragen zu Churn Prediction stellen als auch die Abwanderungswahrscheinlichkeit von Kunden vorhersagen, wobei beide Funktionen relevante Dokumente als Quellen nutzen.
+1. Navigiere zum Bereich "Churn-Prediction"
+2. Wähle zwischen Beispieldaten oder dem Hochladen eigener Kundendaten (CSV)
+3. Starte die Vorhersage, um Kunden mit Abwanderungsrisiko zu identifizieren
+4. Für jeden Kunden werden Risikofaktoren und empfohlene Maßnahmen angezeigt
 
-## Funktionsweise
+### Dokumente verwalten
 
-Das System arbeitet in folgenden Schritten:
+1. Navigiere zum Bereich "Dokumente"
+2. Lade neue Dokumente hoch (PDF, DOCX, TXT, MD, HTML)
+3. Passe Einstellungen für die Dokumentverarbeitung an
 
-1. **Dokumentenverarbeitung**:
-   - Laden verschiedener Dokumenttypen
-   - Aufteilung in Abschnitte und Chunks
-   - Extraktion von Schlüsselwörtern
-   - Erstellung von Embeddings mit Sentence Transformers
+## Architektur
 
-2. **Retrieval**:
-   - Umwandlung der Anfrage in Embeddings
-   - Suche nach ähnlichen Dokumenten mit FAISS
-   - Neuranking basierend auf Relevanz und Schlüsselwortüberschneidung
+Das System basiert auf einer modularen Architektur mit folgenden Komponenten:
 
-3. **Antwortgenerierung**:
-   - Extraktion relevanter Information aus den Dokumenten
-   - Generierung einer kohärenten Antwort
-   - Zuordnung der Informationen zu den Quelldokumenten
+1. **Dokumentenverarbeitung** (`DocumentProcessor`):
+   - Extraktion von Text aus verschiedenen Dokumentformaten
+   - Unterteilung in Chunks
+   - Speicherung und Verwaltung der verarbeiteten Dokumente
 
-4. **Quellennachweis**:
-   - Nachverfolgung der verwendeten Dokumente
-   - Bestimmung des Beitrags jedes Dokuments zur Antwort
-   - Erstellung von formatierten Quellenangaben
+2. **Frage-Antwort-System** (`DocumentQA`):
+   - Suche nach relevanten Passagen
+   - Generierung von Antworten basierend auf den Dokumenten
 
-## Churn-Prediction-Modell
+3. **Churn-Vorhersage** (`ChurnModel`):
+   - Machine Learning Modell für die Vorhersage von Kundenabwanderung
+   - Identifikation von Risikofaktoren und Empfehlungen
 
-Das implementierte Churn-Prediction-Modell:
+4. **Web-Oberfläche**:
+   - Flask-basiertes Web-Interface
+   - Responsive Design mit Bootstrap
+   - Interaktive Komponenten mit JavaScript
 
-- Analysiert Kundendaten mit verschiedenen Features (Nutzungsmetriken, Kundenzufriedenheit, etc.)
-- Berechnet die Abwanderungswahrscheinlichkeit und Risikokategorie
-- Identifiziert die wichtigsten Risikofaktoren für jeden Kunden
-- Empfiehlt Maßnahmen basierend auf den Dokumenten und den Risikofaktoren
-- Verfolgt die Dokumentquellen für Erklärungen und Empfehlungen nach
+## Konfiguration
 
-## Erweiterungsmöglichkeiten
+Die Konfigurationsparameter können in der Datei `app.py` angepasst werden.
 
-- Integration weiterer Dokumentquellen und Formate
-- Verbesserung der Antwortgenerierung durch Fine-Tuning auf spezifische Domains
-- Implementierung von Feedback-Schleifen für kontinuierliches Lernen
-- Anpassung an verschiedene Anwendungsfälle neben Churn Prediction
+## Beitrag
 
-## Technische Details
+Beiträge zum Projekt sind willkommen! Bitte folge diesen Schritten:
 
-- **Frameworks**: PyTorch, Transformers, FAISS, scikit-learn
-- **Modelle**: Sentence Transformers für Embeddings, QA-Modelle für Antwortextraktion, T5 für Antwortgenerierung
-- **Datenverarbeitung**: Spacy für NLP, langchain für Dokumentverarbeitung
+1. Forke das Repository
+2. Erstelle einen Feature-Branch (`git checkout -b feature/new-feature`)
+3. Committe deine Änderungen (`git commit -am 'Add new feature'`)
+4. Pushe zum Branch (`git push origin feature/new-feature`)
+5. Erstelle einen Pull Request
 
 ## Lizenz
 
-Open Source unter der MIT Lizenz.
+Dieses Projekt ist unter der MIT-Lizenz veröffentlicht - siehe LICENSE-Datei für Details.
