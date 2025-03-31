@@ -1,0 +1,155 @@
+{% extends 'modern_layout.html' %}
+
+{% block content %}
+<div class="scodi-dashboard">
+    <!-- Headline -->
+    <div class="scodi-center">
+        <h1>Fragen stellen</h1>
+    </div>
+    
+    <!-- Features Section -->
+    <div class="scodi-section-title">
+        <h2>Funktionen</h2>
+        <p>Unser dokumentenbasiertes QA-System bietet verschiedene Möglichkeiten, Ihre Dokumente zu nutzen.</p>
+    </div>
+    
+    <div class="feature-cards">
+        <!-- Frage & Antwort Card -->
+        <div class="scodi-card feature-card">
+            <div class="scodi-center">
+                <div class="scodi-card-icon">
+                    <i class="fas fa-question-circle"></i>
+                </div>
+                <h3 class="scodi-card-title">Frage & Antwort</h3>
+                <p class="scodi-card-content">
+                    Stellen Sie Fragen zu Ihren Dokumenten und erhalten Sie präzise Antworten mit Quellenangaben.
+                </p>
+                <a href="/qa" class="scodi-btn scodi-btn-primary">Jetzt ausprobieren</a>
+            </div>
+        </div>
+        
+        <!-- Dokumentenverwaltung Card -->
+        <div class="scodi-card feature-card">
+            <div class="scodi-center">
+                <div class="scodi-card-icon">
+                    <i class="fas fa-file-alt"></i>
+                </div>
+                <h3 class="scodi-card-title">Dokumentenverwaltung</h3>
+                <p class="scodi-card-content">
+                    Laden Sie Dokumente hoch, organisieren Sie sie in Kategorien und verarbeiten Sie sie für optimale Ergebnisse.
+                </p>
+                <a href="/documents" class="scodi-btn scodi-btn-primary">Dokumente verwalten</a>
+            </div>
+        </div>
+        
+        <!-- Churn-Prediction Card -->
+        <div class="scodi-card feature-card">
+            <div class="scodi-center">
+                <div class="scodi-card-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <h3 class="scodi-card-title">Churn-Prediction</h3>
+                <p class="scodi-card-content">
+                    Analysieren Sie Kundendaten, identifizieren Sie Abwanderungsrisiken und erhalten Sie Handlungsempfehlungen.
+                </p>
+                <a href="/churn" class="scodi-btn scodi-btn-primary">Analysen starten</a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- System Initialization Section -->
+    <div class="scodi-section">
+        <div class="scodi-center">
+            <h2>System starten</h2>
+            <p>Bevor Sie beginnen, initialisieren Sie das System, um die Dokumente zu verarbeiten und die Modelle zu laden.</p>
+            <button id="btn-initialize" class="scodi-btn scodi-btn-primary">
+                <span id="btn-text">System initialisieren</span>
+                <span id="init-loader" class="scodi-spinner" style="display: none;"></span>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Quick Start Section -->
+    <div class="scodi-section scodi-section-alt">
+        <div class="scodi-section-title">
+            <h2>Schnelleinstieg</h2>
+            <p>Folgen Sie diesen Schritten, um mit dem System zu beginnen:</p>
+        </div>
+        
+        <div class="scodi-steps">
+            <div class="scodi-step">
+                <div class="scodi-step-number">1</div>
+                <div>
+                    <h3>Initialisieren</h3>
+                    <p>Initialisieren Sie das System, um die Dokumente zu verarbeiten und die Modelle zu laden.</p>
+                </div>
+            </div>
+            
+            <div class="scodi-step">
+                <div class="scodi-step-number">2</div>
+                <div>
+                    <h3>Dokumente</h3>
+                    <p>Laden Sie Dokumente hoch, organisieren Sie sie in Kategorien.</p>
+                </div>
+            </div>
+            
+            <div class="scodi-step">
+                <div class="scodi-step-number">3</div>
+                <div>
+                    <h3>Fragen</h3>
+                    <p>Stellen Sie Fragen zu Ihren Dokumenten oder nutzen Sie die Churn-Prediction.</p>
+                </div>
+            </div>
+            
+            <div class="scodi-step">
+                <div class="scodi-step-number">4</div>
+                <div>
+                    <h3>Analysieren</h3>
+                    <p>Arbeiten Sie mit den Antworten und Empfehlungen.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const btnInitialize = document.getElementById('btn-initialize');
+        const btnText = document.getElementById('btn-text');
+        const initLoader = document.getElementById('init-loader');
+        
+        btnInitialize.addEventListener('click', function() {
+            // Zeige Ladeanimation
+            btnText.textContent = 'Initialisiere...';
+            initLoader.style.display = 'inline-block';
+            btnInitialize.disabled = true;
+            
+            // Sende Anfrage zur Initialisierung
+            fetch('/api/init', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Fehler bei der Initialisierung: ' + data.error);
+                } else {
+                    alert('System erfolgreich initialisiert!');
+                    btnText.textContent = 'System initialisiert';
+                }
+            })
+            .catch(error => {
+                alert('Fehler bei der Initialisierung: ' + error.message);
+            })
+            .finally(() => {
+                initLoader.style.display = 'none';
+                btnInitialize.disabled = false;
+            });
+        });
+    });
+</script>
+{% endblock %}
