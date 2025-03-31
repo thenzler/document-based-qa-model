@@ -13,7 +13,17 @@ from flask import Flask, render_template, request, jsonify, send_from_directory,
 # Erst nach dem Hinzufügen des Pfads importieren
 try:
     from src.data_processing import DocumentProcessor
-    from src.qa_system import DocumentQA
+    # Versuche, das LLM-basierte QA-System zu importieren
+    try:
+        from src.qa_system_llm import DocumentQA
+        print("LLM-basiertes QA-System erfolgreich geladen")
+        using_llm = True
+    except ImportError as e:
+        print(f"LLM-basiertes QA-System konnte nicht geladen werden: {e}")
+        print("Verwende Standard-QA-System ohne LLM")
+        from src.qa_system import DocumentQA
+        using_llm = False
+    
     from src.model_training import ChurnModel
 except ImportError as e:
     print(f"Import-Fehler: {e}")
@@ -32,6 +42,9 @@ doc_processor = None
 churn_model = None
 recent_questions = []
 
+# Status-Flag für LLM-Nutzung
+is_using_llm = using_llm
+
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
@@ -40,7 +53,21 @@ def init_system():
     global qa_system, doc_processor, churn_model
     
     if qa_system is None:
-        qa_system = DocumentQA()
+        # Initialisiere QA-System mit GPU-Unterstützung, falls verfügbar
+        if is_using_llm:
+            try:
+                qa_system = DocumentQA(use_gpu=True)
+                print("QA-System mit LLM-Unterstützung initialisiert")
+            except Exception as e:
+                print(f"Fehler bei der LLM-Initialisierung: {e}")
+                # Fallback auf nicht-LLM Version
+                from src.qa_system import DocumentQA as StandardDocumentQA
+                qa_system = StandardDocumentQA()
+                print("Fallback auf Standard-QA-System")
+        else:
+            qa_system = DocumentQA()
+            print("Standard-QA-System initialisiert")
+            
         # Dokumente verarbeiten
         docs_dir = app.config['DOCS_FOLDER']
         if docs_dir.exists():
@@ -55,11 +82,11 @@ def init_system():
 # Hauptrouten
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html', using_llm=is_using_llm)
 
 @app.route('/qa')
 def qa_page():
-    return render_template('qa.html', recent_questions=recent_questions[-5:])
+    return render_template('qa.html', recent_questions=recent_questions[-5:], using_llm=is_using_llm)
 
 @app.route('/documents')
 def documents_page():
@@ -69,11 +96,11 @@ def documents_page():
     if doc_processor and app.config['DOCS_FOLDER'].exists():
         docs = doc_processor.list_documents(str(app.config['DOCS_FOLDER']))
     
-    return render_template('documents.html', documents=docs)
+    return render_template('documents.html', documents=docs, using_llm=is_using_llm)
 
 @app.route('/churn')
 def churn_page():
-    return render_template('churn.html')
+    return render_template('churn.html', using_llm=is_using_llm)
 
 # API-Endpunkte
 @app.route('/api/ask', methods=['POST'])
@@ -101,6 +128,7 @@ def ask_question():
             "sources": sources
         })
     except Exception as e:
+        print(f"Fehler beim Beantworten der Frage: {str(e)}")
         return jsonify({"error": f"Fehler beim Beantworten der Frage: {str(e)}"}), 500
 
 @app.route('/api/documents', methods=['GET'])
@@ -229,7 +257,8 @@ def answer_question():
         return jsonify({
             "answer": answer,
             "sources": sources,
-            "processingTime": processing_time
+            "processingTime": processing_time,
+            "using_llm": is_using_llm
         })
     except Exception as e:
         print(f"Fehler bei answer_question: {str(e)}")
@@ -266,14 +295,25 @@ def initialize_system():
         init_system()
         return jsonify({
             "success": True,
-            "message": "System erfolgreich initialisiert"
+            "message": "System erfolgreich initialisiert",
+            "using_llm": is_using_llm
         })
     except Exception as e:
         return jsonify({"error": f"Fehler bei der Initialisierung: {str(e)}"}), 500
+
+@app.route('/api/system/status', methods=['GET'])
+def system_status():
+    """Gibt den aktuellen Status des Systems zurück"""
+    return jsonify({
+        "using_llm": is_using_llm,
+        "documents_loaded": len(qa_system.documents) if qa_system else 0,
+        "initialized": qa_system is not None
+    })
 
 if __name__ == '__main__':
     # Stelle sicher, dass die Upload-Verzeichnisse existieren
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     os.makedirs(app.config['DOCS_FOLDER'], exist_ok=True)
     
+    print(f"LLM-Unterstützung: {'Aktiviert' if is_using_llm else 'Deaktiviert'}")
     app.run(debug=True)
