@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frage & Antwort | Dokumentenbasiertes QA</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header class="bg-primary text-white py-3">
+        <div class="container">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-book me-3 fs-2"></i>
+                <h1>Dokumentenbasiertes QA & Churn-Prediction</h1>
+            </div>
+        </div>
+    </header>
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/"><i class="bi bi-house-door"></i> Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/qa"><i class="bi bi-question-circle"></i> Frage & Antwort</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/churn"><i class="bi bi-graph-up"></i> Churn-Prediction</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/documents"><i class="bi bi-file-text"></i> Dokumente</a>
+                    </li>
+                </ul>
+            </div>
+            <div class="status-indicator" id="status-indicator">
+                <div class="spinner-border spinner-border-sm text-light me-2 d-none" id="status-spinner" role="status"></div>
+                <span id="status-text">Initialisierung...</span>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container my-4">
+        <div class="row mb-4">
+            <div class="col">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h2 class="h4 mb-0"><i class="bi bi-question-circle"></i> Dokumentenbasierte Frage & Antwort</h2>
+                    </div>
+                    <div class="card-body">
+                        <p>Stellen Sie Fragen zu Churn-Prediction und erhalten Sie Antworten basierend auf relevanten Dokumenten. Das System analysiert die verfügbaren Dokumente und gibt neben der Antwort auch die Quellen an.</p>
+                        
+                        <div class="input-group mb-3">
+                            <input type="text" class="form-control" id="question-input" placeholder="Ihre Frage zu Churn-Prediction eingeben...">
+                            <button class="btn btn-primary" type="button" id="ask-button">
+                                <i class="bi bi-search"></i> Frage stellen
+                            </button>
+                        </div>
+                        
+                        <div class="form-text mb-3">Beispielfragen: "Was ist Churn Prediction?", "Welche Algorithmen werden für Churn Prediction verwendet?", "Wie kann man Kunden mit hohem Abwanderungsrisiko halten?"</div>
+                        
+                        <div class="question-history mb-4" id="question-history">
+                            <h5>Bisherige Fragen:</h5>
+                            <ul class="list-group" id="history-list">
+                                <!-- History items will be added here dynamically -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results section, hidden initially -->
+        <div class="row mb-4 d-none" id="results-container">
+            <div class="col">
+                <div class="card">
+                    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                        <h3 class="h5 mb-0"><i class="bi bi-chat-left-text"></i> <span id="result-question">Frage</span></h3>
+                        <span class="badge bg-light text-dark" id="processing-time"></span>
+                    </div>
+                    <div class="card-body">
+                        <!-- Loading spinner, shown during processing -->
+                        <div id="answer-loading" class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Wird geladen...</span>
+                            </div>
+                            <p class="mt-2">Durchsuche Dokumente und generiere Antwort...</p>
+                        </div>
+                        
+                        <!-- Answer container, shown when results are available -->
+                        <div id="answer-container" class="d-none">
+                            <h4>Antwort:</h4>
+                            <div class="p-3 bg-light rounded mb-4" id="answer-text">
+                                <!-- Answer text will be inserted here -->
+                            </div>
+                            
+                            <div class="query-variations mb-4" id="query-variations-container">
+                                <h5>Abfragevariationen:</h5>
+                                <div class="d-flex flex-wrap" id="query-variations">
+                                    <!-- Query variations will be inserted here -->
+                                </div>
+                            </div>
+                            
+                            <h4>Quellen:</h4>
+                            <div class="sources-list" id="sources-list">
+                                <!-- Sources will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Advanced options card -->
+        <div class="row">
+            <div class="col">
+                <div class="card">
+                    <div class="card-header bg-secondary text-white">
+                        <h3 class="h5 mb-0"><i class="bi bi-gear"></i> Erweiterte Optionen</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="use-generation" checked>
+                                    <label class="form-check-label" for="use-generation">Antwortgenerierung aktivieren</label>
+                                    <div class="form-text">Wenn aktiviert, generiert das System eine verständliche Antwort. Wenn deaktiviert, extrahiert es nur relevante Passagen aus den Dokumenten.</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="top-k" class="form-label">Anzahl der zu durchsuchenden Dokumente:</label>
+                                    <input type="range" class="form-range" min="1" max="10" value="5" id="top-k">
+                                    <div class="d-flex justify-content-between">
+                                        <span>1</span>
+                                        <span id="top-k-value">5</span>
+                                        <span>10</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-dark text-white py-3 mt-auto">
+        <div class="container text-center">
+            <p class="mb-0">© 2025 Dokumentenbasiertes QA & Churn-Prediction System</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/qa.js') }}"></script>
+</body>
+</html>
