@@ -17,10 +17,12 @@ import pandas as pd
 from typing import List, Dict, Tuple, Union, Optional, Any
 from pathlib import Path
 import torch
-from transformers import AutoModelForQuestionAnswering, AutoTokenizer
+from transformers import AutoModelForQuestionAnswering, AutoTokenizer, pipeline
+from transformers import AutoModelForSeq2SeqLM, AutoModelForCausalLM
 import faiss
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, util
 import time
+import re
 
 # Import local modules
 from data_processing import DocumentProcessor
@@ -34,6 +36,7 @@ class DocumentQA:
         self,
         embedding_model_name: str = "sentence-transformers/all-mpnet-base-v2",
         qa_model_name: str = "deepset/gbert-base",
+        generation_model_name: str = "google/flan-t5-base",
         processed_data_dir: Optional[str] = None
     ):
         """
@@ -41,7 +44,8 @@ class DocumentQA:
         
         Args:
             embedding_model_name: Model for document embeddings
-            qa_model_name: Model for question answering
+            qa_model_name: Model for extractive question answering
+            generation_model_name: Model for answer generation
             processed_data_dir: Optional directory with pre-processed data
         """
         # Initialize document processor
@@ -52,6 +56,16 @@ class DocumentQA:
         self.qa_model = AutoModelForQuestionAnswering.from_pretrained(qa_model_name)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.qa_model.to(self.device)
+        
+        # Initialize generation model for answer synthesis
+        try:
+            self.gen_tokenizer = AutoTokenizer.from_pretrained(generation_model_name)
+            self.gen_model = AutoModelForSeq2SeqLM.from_pretrained(generation_model_name)
+            self.gen_model.to(self.device)
+            self.has_generation = True
+        except:
+            print(f"Could not load generation model {generation_model_name}. Using extractive QA only.")
+            self.has_generation = False
         
         # Load pre-processed data if available
         if processed_data_dir:
@@ -101,6 +115,42 @@ class DocumentQA:
                 retrieved_docs.append(doc)
         
         return retrieved_docs
+    
+    def rerank_documents(self, query: str, retrieved_docs: List[Dict], top_k: int = 3) -> List[Dict]:
+        """
+        Rerank retrieved documents using keyword matching and semantic similarity.
+        
+        Args:
+            query: The query text
+            retrieved_docs: List of retrieved documents
+            top_k: Number of documents to keep
+            
+        Returns:
+            Reranked list of documents
+        """
+        if not retrieved_docs:
+            return []
+        
+        # Extract query keywords using the document processor
+        query_keywords = self.doc_processor.extract_keywords(query)
+        
+        # Calculate keyword overlap scores
+        for i, doc in enumerate(retrieved_docs):
+            doc_keywords = set(doc.get('keywords', []))
+            keyword_overlap = len(query_keywords.intersection(doc_keywords)) / max(1, len(query_keywords))
+            
+            # Update relevance score with keyword information
+            retrieved_docs[i]['keyword_score'] = keyword_overlap
+            retrieved_docs[i]['combined_score'] = (
+                retrieved_docs[i]['relevance_score'] * 0.7 + 
+                keyword_overlap * 0.3
+            )
+        
+        # Sort by combined score
+        reranked_docs = sorted(retrieved_docs, key=lambda x: x['combined_score'], reverse=True)
+        
+        # Return top_k documents
+        return reranked_docs[:top_k]
     
     def extract_answer(self, question: str, context: str) -> Dict:
         """
@@ -159,13 +209,75 @@ class DocumentQA:
             "score": float(torch.max(start_scores).item() + torch.max(end_scores).item()) / 2
         }
     
-    def answer_question(self, question: str, top_k: int = 3) -> Dict:
+    def generate_answer(self, question: str, contexts: List[str]) -> Dict:
+        """
+        Generate an answer using the T5 generation model.
+        
+        Args:
+            question: The question text
+            contexts: List of context texts
+            
+        Returns:
+            Dictionary with generated answer and metadata
+        """
+        if not self.has_generation:
+            # Fallback to extractive QA
+            best_answer = {"answer": "Generation model not available", "score": 0}
+            for context in contexts:
+                answer = self.extract_answer(question, context)
+                if answer["score"] > best_answer["score"]:
+                    best_answer = answer
+            return best_answer
+        
+        # Combine contexts (up to max token limit)
+        combined_context = " ".join(contexts)
+        
+        # Create prompt for generation
+        prompt = f"Answer the question based on the context.\n\nContext: {combined_context}\n\nQuestion: {question}\n\nAnswer:"
+        
+        # Tokenize input
+        inputs = self.gen_tokenizer(
+            prompt,
+            return_tensors="pt",
+            max_length=1024,
+            truncation=True,
+            padding="max_length"
+        )
+        
+        # Move inputs to device
+        input_ids = inputs["input_ids"].to(self.device)
+        attention_mask = inputs["attention_mask"].to(self.device)
+        
+        # Generate answer
+        with torch.no_grad():
+            outputs = self.gen_model.generate(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                max_length=150,
+                num_beams=4,
+                early_stopping=True
+            )
+        
+        # Decode and clean the answer
+        answer_text = self.gen_tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
+        
+        # Sometimes T5 repeats the question or context, remove it if possible
+        answer_text = answer_text.replace(question, "").strip()
+        
+        return {
+            "answer": answer_text,
+            "score": 1.0,  # No confidence score for generation
+            "is_generated": True
+        }
+    
+    def answer_question(self, question: str, top_k: int = 5, use_generation: bool = True) -> Dict:
         """
         Answer a question using the document-based QA system.
         
         Args:
             question: The question to answer
             top_k: Number of documents to retrieve
+            use_generation: Whether to use the generation model
             
         Returns:
             Dictionary with answer, sources, and metadata
@@ -182,34 +294,78 @@ class DocumentQA:
                 "processing_time": time.time() - start_time
             }
         
-        # Extract answers from each document
-        answers = []
-        for doc in retrieved_docs:
-            answer_data = self.extract_answer(question, doc["text"])
-            answer_data["source"] = doc["source"]
-            answer_data["filename"] = doc["filename"]
-            answer_data["relevance_score"] = doc["relevance_score"]
-            answers.append(answer_data)
+        # Rerank documents
+        reranked_docs = self.rerank_documents(question, retrieved_docs, top_k=top_k)
         
-        # Sort answers by score
-        answers.sort(key=lambda x: x["score"], reverse=True)
-        
-        # Select the best answer
-        best_answer = answers[0]
-        
-        # Format sources
-        sources = []
-        for i, answer in enumerate(answers):
-            source = {
-                "source": answer["source"],
-                "relevance_score": answer["relevance_score"],
-                "filename": answer["filename"]
-            }
-            sources.append(source)
+        if use_generation and self.has_generation:
+            # Get context texts
+            contexts = [doc["text"] for doc in reranked_docs]
+            
+            # Generate answer
+            answer_data = self.generate_answer(question, contexts)
+            
+            # Find which documents contributed to the answer
+            answer_text = answer_data["answer"]
+            contributing_docs = []
+            
+            for doc in reranked_docs:
+                # Check if significant parts of the doc appear in the answer
+                doc_sentences = re.split(r'[.!?]', doc["text"])
+                for sentence in doc_sentences:
+                    if len(sentence) > 30 and sentence.strip() in answer_text:
+                        doc["contribution"] = sentence.strip()
+                        contributing_docs.append(doc)
+                        break
+            
+            # If no specific contributions found, use all docs
+            if not contributing_docs:
+                contributing_docs = reranked_docs
+            
+            # Format sources
+            sources = []
+            for doc in contributing_docs:
+                source = {
+                    "source": doc["source"],
+                    "section": doc.get("section", ""),
+                    "filename": doc["filename"],
+                    "relevance_score": doc["combined_score"],
+                    "contribution": doc.get("contribution", "")
+                }
+                sources.append(source)
+            
+        else:
+            # Extract answers from each document
+            answers = []
+            for doc in reranked_docs:
+                answer_data = self.extract_answer(question, doc["text"])
+                answer_data["source"] = doc["source"]
+                answer_data["section"] = doc.get("section", "")
+                answer_data["filename"] = doc["filename"]
+                answer_data["relevance_score"] = doc["combined_score"]
+                answers.append(answer_data)
+            
+            # Sort answers by score
+            answers.sort(key=lambda x: x["score"], reverse=True)
+            
+            # Select the best answer
+            best_answer = answers[0]
+            
+            # Format sources
+            sources = []
+            for answer in answers:
+                source = {
+                    "source": answer["source"],
+                    "section": answer["section"],
+                    "filename": answer["filename"],
+                    "relevance_score": answer["relevance_score"]
+                }
+                sources.append(source)
+            
+            answer_text = best_answer["answer"]
         
         # Prepare response
         response = {
-            "answer": best_answer["answer"],
+            "answer": answer_text,
             "sources": sources,
             "processing_time": time.time() - start_time
         }
@@ -234,125 +390,164 @@ class DocumentQA:
         
         for i, source in enumerate(sources):
             filename = Path(source["source"]).name
+            section = source.get("section", "")
             score = source["relevance_score"]
-            formatted_answer += f"[{i+1}] {filename} (Relevance: {score:.2f})\n"
+            
+            formatted_answer += f"[{i+1}] {filename}"
+            if section:
+                formatted_answer += f" - Section: {section}"
+            formatted_answer += f" (Relevance: {score:.2f})\n"
         
         return formatted_answer
 
 
-class ChurnPredictionSystem:
-    """Churn Prediction System using document-based insights"""
+class DocumentQueryEngine:
+    """Enhanced document query engine with support for multiple queries and explanations"""
     
-    def __init__(self, qa_system: DocumentQA, churn_model_path: Optional[str] = None):
+    def __init__(self, qa_system: DocumentQA):
         """
-        Initialize the churn prediction system.
+        Initialize the document query engine.
         
         Args:
-            qa_system: DocumentQA system for providing insights
-            churn_model_path: Optional path to a saved churn model
+            qa_system: DocumentQA system for retrieving and answering
         """
         self.qa = qa_system
-        self.churn_model = ChurnModel()
-        
-        if churn_model_path and os.path.exists(churn_model_path):
-            self.churn_model.load_model(churn_model_path)
     
-    def predict_churn(self, customer_data: pd.DataFrame) -> pd.DataFrame:
+    def multi_query(self, main_question: str, num_variations: int = 3) -> Dict:
         """
-        Predict churn for customer data.
+        Generate multiple query variations to improve retrieval.
         
         Args:
-            customer_data: DataFrame with customer data
+            main_question: The main question to answer
+            num_variations: Number of query variations to generate
             
         Returns:
-            DataFrame with predictions
+            Combined answer with sources
         """
-        if self.churn_model.pipeline is None:
-            raise ValueError("Churn model not trained or loaded")
+        # Create query variations
+        variations = [main_question]
         
-        return self.churn_model.predict(customer_data)
-    
-    def train_from_documents(self, docs_dir: str, customer_data_path: str, save_path: str):
-        """
-        Train churn model using insights from documents.
+        # Add simple variations
+        if "was ist" in main_question.lower():
+            variations.append(main_question.lower().replace("was ist", "definiere"))
+            variations.append(main_question.lower().replace("was ist", "erkläre"))
+        elif "wie funktioniert" in main_question.lower():
+            variations.append(main_question.lower().replace("wie funktioniert", "beschreibe"))
+            variations.append(main_question.lower().replace("wie funktioniert", "erkläre die funktionsweise von"))
         
-        Args:
-            docs_dir: Directory with documents
-            customer_data_path: Path to customer data CSV
-            save_path: Path to save the trained model
-        """
-        # First, make sure documents are processed
-        if not self.qa.doc_processor.document_store:
-            self.qa.process_documents(docs_dir)
+        # Get answers for each variation
+        all_answers = []
+        all_sources = []
         
-        # Load customer data
-        customer_data = pd.read_csv(customer_data_path)
-        
-        # Train the churn model
-        self.churn_model.train(customer_data)
-        
-        # Save the model
-        self.churn_model.save_model(save_path)
-    
-    def explain_prediction(self, customer_id: str, customer_data: pd.DataFrame) -> Dict:
-        """
-        Explain a churn prediction using model insights and document references.
-        
-        Args:
-            customer_id: ID of the customer to explain
-            customer_data: DataFrame with customer data
+        for i, query in enumerate(variations[:num_variations]):
+            print(f"Processing query variation {i+1}: {query}")
+            response = self.qa.answer_question(query)
             
-        Returns:
-            Dictionary with explanation and document references
-        """
-        # Get customer data
-        customer = customer_data[customer_data['id'] == customer_id]
+            if response["answer"] != "I couldn't find any relevant documents to answer this question.":
+                all_answers.append(response["answer"])
+                all_sources.extend(response["sources"])
         
-        if customer.empty:
-            return {"error": f"Customer ID {customer_id} not found"}
+        # Combine and deduplicate sources
+        unique_sources = []
+        source_keys = set()
         
-        # Make prediction
-        prediction = self.churn_model.predict(customer)
+        for source in all_sources:
+            key = f"{source['source']}:{source.get('section', '')}"
+            if key not in source_keys:
+                source_keys.add(key)
+                unique_sources.append(source)
         
-        # Get SHAP values
-        explainer = self.churn_model.explain_model(X_test=customer)
+        # Sort sources by relevance
+        unique_sources.sort(key=lambda x: x["relevance_score"], reverse=True)
         
-        # Extract top factors
-        shap_values = explainer.shap_values(self.churn_model.pipeline.named_steps['preprocessing'].transform(customer))
-        if isinstance(shap_values, list):
-            shap_values = shap_values[1]
+        # Take the best answer or combine them
+        if all_answers:
+            # Use the first answer (from the main query) as it's usually the best
+            final_answer = all_answers[0]
+        else:
+            final_answer = "I couldn't find relevant information to answer this question."
         
-        feature_importance = list(zip(self.churn_model.feature_names, shap_values[0]))
-        feature_importance.sort(key=lambda x: abs(x[1]), reverse=True)
-        
-        top_factors = [
-            {"feature": feature, "importance": float(importance)}
-            for feature, importance in feature_importance[:5]
-        ]
-        
-        # Ask the QA system for insights on these factors
-        insights = {}
-        for factor in top_factors:
-            feature = factor["feature"]
-            query = f"What influences customer churn regarding {feature}?"
-            insight = self.qa.answer_question(query)
-            insights[feature] = insight
-        
-        # Prepare explanation
-        explanation = {
-            "customer_id": customer_id,
-            "churn_probability": float(prediction['churn_probability'].iloc[0]),
-            "risk_category": prediction['risk_category'].iloc[0],
-            "top_factors": top_factors,
-            "insights": insights
+        # Create response
+        response = {
+            "answer": final_answer,
+            "sources": unique_sources[:5],  # Limit to top 5 sources
+            "processing_time": 0  # Not tracking time for the combined query
         }
+        
+        return response
+    
+    def explain_with_documents(self, question: str, answer: str, sources: List[Dict]) -> str:
+        """
+        Generate an explanation for the answer based on source documents.
+        
+        Args:
+            question: The original question
+            answer: The answer provided
+            sources: The source documents used
+            
+        Returns:
+            Explanation text
+        """
+        source_texts = []
+        for source in sources:
+            # Get the actual document text
+            doc_idx = None
+            for i, doc in enumerate(self.qa.doc_processor.document_store):
+                if doc["source"] == source["source"] and doc.get("section", "") == source.get("section", ""):
+                    doc_idx = i
+                    break
+            
+            if doc_idx is not None:
+                doc = self.qa.doc_processor.document_store[doc_idx]
+                source_texts.append(doc["text"])
+        
+        if not source_texts:
+            return "No source documents available to explain this answer."
+        
+        # Create an explanation prompt
+        explanation_prompt = f"""
+        Question: {question}
+        Answer: {answer}
+        
+        Documents that supported this answer:
+        {" ".join(source_texts[:3])}  # Limit to first 3 documents to avoid token limits
+        
+        Explain in detail how these documents support the answer:
+        """
+        
+        # Generate explanation using T5 if available
+        if self.qa.has_generation:
+            inputs = self.qa.gen_tokenizer(
+                explanation_prompt,
+                return_tensors="pt",
+                max_length=1024,
+                truncation=True,
+                padding="max_length"
+            ).to(self.qa.device)
+            
+            with torch.no_grad():
+                output_ids = self.qa.gen_model.generate(
+                    inputs["input_ids"],
+                    max_length=300,
+                    num_beams=4,
+                    early_stopping=True
+                )
+            
+            explanation = self.qa.gen_tokenizer.decode(output_ids[0], skip_special_tokens=True)
+        else:
+            # Manual explanation if generation model not available
+            explanation = "The answer is supported by the following documents:\n\n"
+            for i, text in enumerate(source_texts[:3]):
+                explanation += f"Document {i+1}:\n"
+                # Extract a relevant snippet (first 200 chars)
+                explanation += text[:200] + "...\n\n"
         
         return explanation
 
 
 def main():
     """Main function for command-line interface"""
-    parser = argparse.ArgumentParser(description="Document-based QA and Churn Prediction System")
+    parser = argparse.ArgumentParser(description="Document-based QA System")
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
     
     # Process documents
@@ -365,28 +560,16 @@ def main():
     qa_parser.add_argument("--query", required=True, help="Question to answer")
     qa_parser.add_argument("--docs_dir", help="Directory with documents")
     qa_parser.add_argument("--processed_dir", help="Directory with processed data")
-    qa_parser.add_argument("--top_k", type=int, default=3, help="Number of documents to retrieve")
+    qa_parser.add_argument("--top_k", type=int, default=5, help="Number of documents to retrieve")
+    qa_parser.add_argument("--use_generation", action="store_true", help="Use generation model")
+    qa_parser.add_argument("--explain", action="store_true", help="Generate explanation")
     
-    # Train churn model
-    train_parser = subparsers.add_parser("train", help="Train churn model")
-    train_parser.add_argument("--data", required=True, help="Path to customer data CSV")
-    train_parser.add_argument("--docs_dir", help="Directory with documents")
-    train_parser.add_argument("--processed_dir", help="Directory with processed data")
-    train_parser.add_argument("--save_path", default="models/churn_model.pkl", help="Path to save model")
-    
-    # Predict churn
-    predict_parser = subparsers.add_parser("predict", help="Predict churn")
-    predict_parser.add_argument("--data", required=True, help="Path to customer data CSV")
-    predict_parser.add_argument("--model", required=True, help="Path to trained model")
-    predict_parser.add_argument("--output", help="Path to save predictions CSV")
-    
-    # Explain prediction
-    explain_parser = subparsers.add_parser("explain", help="Explain churn prediction")
-    explain_parser.add_argument("--customer_id", required=True, help="Customer ID to explain")
-    explain_parser.add_argument("--data", required=True, help="Path to customer data CSV")
-    explain_parser.add_argument("--model", required=True, help="Path to trained model")
-    explain_parser.add_argument("--docs_dir", help="Directory with documents")
-    explain_parser.add_argument("--processed_dir", help="Directory with processed data")
+    # Multi-query enhancement
+    multiqa_parser = subparsers.add_parser("multiqa", help="Answer with multiple query variations")
+    multiqa_parser.add_argument("--query", required=True, help="Main question to answer")
+    multiqa_parser.add_argument("--docs_dir", help="Directory with documents")
+    multiqa_parser.add_argument("--processed_dir", help="Directory with processed data")
+    multiqa_parser.add_argument("--variations", type=int, default=3, help="Number of query variations")
     
     args = parser.parse_args()
     
@@ -407,12 +590,23 @@ def main():
             qa.process_documents(args.docs_dir)
         
         # Answer question
-        response = qa.answer_question(args.query, top_k=args.top_k)
+        response = qa.answer_question(args.query, top_k=args.top_k, use_generation=args.use_generation)
         formatted_answer = qa.format_answer_with_sources(response)
         
         print(formatted_answer)
+        
+        # Generate explanation if requested
+        if args.explain:
+            query_engine = DocumentQueryEngine(qa)
+            explanation = query_engine.explain_with_documents(
+                args.query, 
+                response["answer"], 
+                response["sources"]
+            )
+            print("\nExplanation:")
+            print(explanation)
     
-    elif args.command == "train":
+    elif args.command == "multiqa":
         # Initialize QA system
         qa = DocumentQA(processed_data_dir=args.processed_dir)
         
@@ -420,52 +614,15 @@ def main():
         if args.docs_dir and not qa.doc_processor.document_store:
             qa.process_documents(args.docs_dir)
         
-        # Initialize churn system
-        churn_system = ChurnPredictionSystem(qa)
+        # Create query engine
+        query_engine = DocumentQueryEngine(qa)
         
-        # Train churn model
-        churn_system.train_from_documents(args.docs_dir, args.data, args.save_path)
-    
-    elif args.command == "predict":
-        # Load data
-        customer_data = pd.read_csv(args.data)
+        # Answer with multiple query variations
+        response = query_engine.multi_query(args.query, num_variations=args.variations)
         
-        # Initialize churn model
-        churn_model = ChurnModel()
-        churn_model.load_model(args.model)
-        
-        # Make predictions
-        predictions = churn_model.predict(customer_data)
-        
-        # Add to original data
-        result = pd.concat([customer_data, predictions], axis=1)
-        
-        # Save or print
-        if args.output:
-            result.to_csv(args.output, index=False)
-            print(f"Predictions saved to {args.output}")
-        else:
-            print(result)
-    
-    elif args.command == "explain":
-        # Load data
-        customer_data = pd.read_csv(args.data)
-        
-        # Initialize QA system
-        qa = DocumentQA(processed_data_dir=args.processed_dir)
-        
-        # Process documents if needed
-        if args.docs_dir and not qa.doc_processor.document_store:
-            qa.process_documents(args.docs_dir)
-        
-        # Initialize churn system
-        churn_system = ChurnPredictionSystem(qa, args.model)
-        
-        # Explain prediction
-        explanation = churn_system.explain_prediction(args.customer_id, customer_data)
-        
-        # Format and print explanation
-        print(json.dumps(explanation, indent=2))
+        # Format and print answer
+        formatted_answer = qa.format_answer_with_sources(response)
+        print(formatted_answer)
 
 
 if __name__ == "__main__":
