@@ -8,17 +8,14 @@ This module provides a web interface for:
 """
 
 import os
-import json
-import pandas as pd
-import numpy as np
-from pathlib import Path
-from flask import Flask, render_template, request, jsonify, send_from_directory
-import threading
-import time
+import sys
 
-# Import our custom modules
-from src.qa_system import DocumentQA, ChurnQASystem
+# Pfad zum src-Verzeichnis hinzufügen
+sys.path.append('./src')
+
+# Erst nach dem Hinzufügen des Pfads importieren
 from src.data_processing import DocumentProcessor
+from src.qa_system import DocumentQA, ChurnQASystem
 from src.model_training import ChurnModel, DocumentEnhancedChurnModel
 
 # Initialize constants
