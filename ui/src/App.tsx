@@ -6,8 +6,7 @@ import Dashboard from './pages/Dashboard';
 import DocumentsPage from './pages/DocumentsPage';
 import TrainingPage from './pages/TrainingPage';
 import ModelsPage from './pages/ModelsPage';
-import ChurnPredictionPage from './pages/ChurnPredictionPage';
-import BatchResultsPage from './pages/BatchResultsPage';
+import QAPage from './pages/QAPage';
 import './styles/main.css';
 
 // Definieren des Theme für Material UI
@@ -69,8 +68,7 @@ const App: React.FC = () => {
             <Route path="/training" element={<TrainingPage />} />
             <Route path="/training/:trainingId" element={<TrainingPage />} />
             <Route path="/models" element={<ModelsPage />} />
-            <Route path="/churn" element={<ChurnPredictionPage />} />
-            <Route path="/churn/batch/:batchId" element={<BatchResultsPage />} />
+            <Route path="/qa" element={<QAPage />} />
           </Routes>
         </MainLayout>
       </Router>
