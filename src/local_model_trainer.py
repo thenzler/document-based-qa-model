@@ -529,6 +529,86 @@ class LocalModelTrainer:
             logger.error(f"Fehler bei der Modelloptimierung: {e}")
             return False
     
+    def _generate_model_readme(self):
+        """Erstellt eine README-Datei für das verpackte Modell."""
+        base_model = self.base_model_name
+        model_type = self.model_type
+        created_date = self.model_info.get("created_date", "Unbekannt")
+        num_docs = len(self.model_info.get("documents_used", []))
+        
+        training_params = self.model_info.get("training_parameters", {})
+        epochs = training_params.get("epochs", "?")
+        batch_size = training_params.get("batch_size", "?")
+        learning_rate = training_params.get("learning_rate", "?")
+        
+        optimized = "optimized" in self.model_info
+        onnx_exported = self.model_info.get("optimized", {}).get("onnx_exported", False)
+        quantized = self.model_info.get("optimized", {}).get("quantized", False)
+        
+        # README-Inhalt - Ersetze den variablen Namen 'answer' durch 'extracted_answer'
+        return f"""# Lokal trainiertes Dokumenten-QA-Modell
+
+## Modell-Informationen
+
+- **Basis-Modell**: {base_model}
+- **Modell-Typ**: {model_type}
+- **Erstellungsdatum**: {created_date}
+- **Anzahl verwendeter Dokumente**: {num_docs}
+
+## Trainingsparameter
+
+- **Epochs**: {epochs}
+- **Batch-Größe**: {batch_size}
+- **Lernrate**: {learning_rate}
+
+## Optimierungen
+
+- **Optimiert**: {'Ja' if optimized else 'Nein'}
+- **ONNX-Format**: {'Ja' if onnx_exported else 'Nein'}
+- **Quantisiert**: {'Ja' if quantized else 'Nein'}
+
+## Verwendung
+
+### Laden des Modells
+
+```python
+from transformers import AutoTokenizer, AutoModelForQuestionAnswering
+
+# Pfad zum entpackten Modell
+model_path = "final_model"  # oder "optimized/onnx" für das ONNX-Modell
+
+# Tokenizer und Modell laden
+tokenizer = AutoTokenizer.from_pretrained(model_path)
+model = AutoModelForQuestionAnswering.from_pretrained(model_path)
+
+# Frage stellen
+question = "Ihre Frage hier"
+context = "Der Kontext, in dem die Frage beantwortet werden soll"
+inputs = tokenizer(question, context, return_tensors="pt")
+outputs = model(**inputs)
+
+# Antwort extrahieren
+answer_start = torch.argmax(outputs.start_logits)
+answer_end = torch.argmax(outputs.end_logits) + 1
+extracted_answer = tokenizer.decode(inputs.input_ids[0][answer_start:answer_end])
+print(f"Antwort: {extracted_answer}")
+```
+
+### Für fortgeschrittene Anwendungen
+
+Weitere Informationen zur Verwendung des Modells finden Sie in der Dokumentation zu Hugging Face Transformers: 
+https://huggingface.co/docs/transformers/index
+
+## Leistung
+
+Die Leistung dieses Modells ist optimiert für die Dokumente, mit denen es trainiert wurde.
+Für allgemeine Fragen wird empfohlen, ein größeres, vortrainiertes Modell zu verwenden.
+
+---
+
+Erstellt mit dem Document-Based QA-System
+"""
+
     def package_model(self):
         """
         Verpackt das trainierte und optimierte Modell zur Distribution.
@@ -591,8 +671,7 @@ class LocalModelTrainer:
             zip_filename = f"local_qa_model_{base_model_short}_{version}_{date_str}.zip"
             zip_path = output_dir / zip_filename
             
-            # Definiere die Variable 'answer' hier, um den Fehler zu beheben
-            answer = "Diese Variable wird im README-Beispielcode verwendet"
+            # Variable 'answer' wird nicht mehr benötigt, da wir 'extracted_answer' im README verwenden
             
             shutil.make_archive(
                 str(zip_path).replace(".zip", ""),
@@ -610,83 +689,3 @@ class LocalModelTrainer:
         except Exception as e:
             logger.error(f"Fehler beim Verpacken des Modells: {e}")
             return None
-    
-    def _generate_model_readme(self):
-        """Erstellt eine README-Datei für das verpackte Modell."""
-        base_model = self.base_model_name
-        model_type = self.model_type
-        created_date = self.model_info.get("created_date", "Unbekannt")
-        num_docs = len(self.model_info.get("documents_used", []))
-        
-        training_params = self.model_info.get("training_parameters", {})
-        epochs = training_params.get("epochs", "?")
-        batch_size = training_params.get("batch_size", "?")
-        learning_rate = training_params.get("learning_rate", "?")
-        
-        optimized = "optimized" in self.model_info
-        onnx_exported = self.model_info.get("optimized", {}).get("onnx_exported", False)
-        quantized = self.model_info.get("optimized", {}).get("quantized", False)
-        
-        # README-Inhalt
-        return f"""# Lokal trainiertes Dokumenten-QA-Modell
-
-## Modell-Informationen
-
-- **Basis-Modell**: {base_model}
-- **Modell-Typ**: {model_type}
-- **Erstellungsdatum**: {created_date}
-- **Anzahl verwendeter Dokumente**: {num_docs}
-
-## Trainingsparameter
-
-- **Epochs**: {epochs}
-- **Batch-Größe**: {batch_size}
-- **Lernrate**: {learning_rate}
-
-## Optimierungen
-
-- **Optimiert**: {'Ja' if optimized else 'Nein'}
-- **ONNX-Format**: {'Ja' if onnx_exported else 'Nein'}
-- **Quantisiert**: {'Ja' if quantized else 'Nein'}
-
-## Verwendung
-
-### Laden des Modells
-
-```python
-from transformers import AutoTokenizer, AutoModelForQuestionAnswering
-
-# Pfad zum entpackten Modell
-model_path = "final_model"  # oder "optimized/onnx" für das ONNX-Modell
-
-# Tokenizer und Modell laden
-tokenizer = AutoTokenizer.from_pretrained(model_path)
-model = AutoModelForQuestionAnswering.from_pretrained(model_path)
-
-# Frage stellen
-question = "Ihre Frage hier"
-context = "Der Kontext, in dem die Frage beantwortet werden soll"
-inputs = tokenizer(question, context, return_tensors="pt")
-outputs = model(**inputs)
-
-# Antwort extrahieren
-answer_start = torch.argmax(outputs.start_logits)
-answer_end = torch.argmax(outputs.end_logits) + 1
-answer = tokenizer.decode(inputs.input_ids[0][answer_start:answer_end])
-print(f"Antwort: {answer}")
-```
-
-### Für fortgeschrittene Anwendungen
-
-Weitere Informationen zur Verwendung des Modells finden Sie in der Dokumentation zu Hugging Face Transformers: 
-https://huggingface.co/docs/transformers/index
-
-## Leistung
-
-Die Leistung dieses Modells ist optimiert für die Dokumente, mit denen es trainiert wurde.
-Für allgemeine Fragen wird empfohlen, ein größeres, vortrainiertes Modell zu verwenden.
-
----
-
-Erstellt mit dem Document-Based QA-System
-"""
