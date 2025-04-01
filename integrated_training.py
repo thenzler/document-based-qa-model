@@ -31,7 +31,7 @@ logger = logging.getLogger("integrated-training")
 
 # Import der original app
 try:
-    from enhanced_app_with_training import app, init_system, qa_system, SCODI_DESIGN
+    from enhanced_app_with_training import app, init_system, qa_system, SCODI_DESIGN, get_documents
 except ImportError:
     logger.error("Konnte enhanced_app_with_training.py nicht importieren.")
     logger.error("Bitte stellen Sie sicher, dass die Datei existiert und ausführbar ist.")
@@ -300,34 +300,61 @@ def update_status(message=None, progress=None, error=None, completed=None, model
     if model_path is not None:
         training_status["model_path"] = model_path
 
-# Hauptfunktion
-def main():
-    # Erstelle die Training-Template-Datei, falls sie nicht existiert
-    create_training_template()
+# Füge einen Menüeintrag für das Training zu unified_app.html hinzu
+def add_training_menu_to_unified_app():
+    """Fügt einen Menüeintrag zum Training in die unified_app.html ein"""
+    app_path = Path("templates/unified_app.html")
     
-    # Füge einen direkten Link zur Navigation hinzu
-    add_training_link_to_navbar()
+    if not app_path.exists():
+        logger.warning(f"unified_app.html nicht gefunden: {app_path}")
+        return
     
-    # Blueprint registrieren
-    app.register_blueprint(training_bp)
-    
-    # Debug-Ausgabe der registrierten Blueprints
-    logger.info(f"Registrierte Blueprints: {list(app.blueprints.keys())}")
-    
-    # App starten
-    print("Starte erweiterte QA-App mit integriertem Modelltraining")
-    print("WICHTIG: Sie können die Trainingsseite direkt unter http://localhost:5000/modell-training erreichen")
-    app.run(debug=True, host='0.0.0.0')
+    try:
+        with open(app_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        
+        # Suche nach dem Navigation ul-Element
+        nav_start = content.find('<ul class="navbar-nav ms-auto">')
+        if nav_start != -1:
+            # Suche nach dem Ende von </ul>
+            nav_end = content.find('</ul>', nav_start)
+            if nav_end != -1:
+                # Füge den Menüeintrag für Modelltraining vor dem Ende von </ul> ein
+                training_menu_item = '''
+                    <li class="nav-item">
+                        <a class="nav-link" href="/modell-training">
+                            <i class="fas fa-brain me-1"></i> Modell-Training
+                        </a>
+                    </li>'''                
+                
+                # Prüfe ob der Eintrag bereits existiert
+                if "Modell-Training" not in content[nav_start:nav_end]:
+                    # Füge den Eintrag ein
+                    new_content = content[:nav_end] + training_menu_item + content[nav_end:]
+                    
+                    # Erstelle ein Backup
+                    backup_path = app_path.with_suffix(".html.bak")
+                    with open(backup_path, "w", encoding="utf-8") as f:
+                        f.write(content)
+                    
+                    # Schreibe die neue Datei
+                    with open(app_path, "w", encoding="utf-8") as f:
+                        f.write(new_content)
+                    
+                    logger.info(f"Menüeintrag für Modelltraining zu {app_path} hinzugefügt")
+        
+    except Exception as e:
+        logger.error(f"Fehler beim Hinzufügen des Menüeintrags: {e}")
 
+# Erstelle Training-Template
 def create_training_template():
-    """Erstellt die Training-Template-Datei, falls sie nicht existiert"""
-    templates_dir = Path("templates")
-    templates_dir.mkdir(exist_ok=True)
+    """Erstellt das Training-Template, falls es nicht existiert"""
+    template_path = Path("templates/training.html")
     
-    training_template = templates_dir / "training.html"
-    
-    if not training_template.exists():
-        template_content = """{% extends "modern_layout.html" %}
+    if not template_path.exists():
+        logger.info(f"Erstelle Training-Template: {template_path}")
+        
+        template_content = '''{% extends "modern_layout.html" %}
 
 {% block title %}Modell-Training{% endblock %}
 
@@ -505,49 +532,29 @@ def create_training_template():
         {% endif %}
     });
 </script>
-{% endblock %}"""
+{% endblock %}'''
         
-        with open(training_template, "w", encoding="utf-8") as f:
+        with open(template_path, "w", encoding="utf-8") as f:
             f.write(template_content)
-        
-        logger.info(f"Training-Template erstellt: {training_template}")
 
-def add_training_link_to_navbar():
-    """Fügt direkt einen Button zur Navigation hinzu"""
-    templates_dir = Path("templates")
-    unified_app_path = templates_dir / "unified_app.html"
+# Hauptfunktion
+def main():
+    # Erstelle Trainings-Template und füge Menüeintrag hinzu
+    create_training_template()
+    add_training_menu_to_unified_app()
     
-    if unified_app_path.exists():
-        # Lese aktuelle Datei
-        with open(unified_app_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        
-        # Wenn die Navigation existiert und der Training-Link noch nicht vorhanden ist
-        if "<nav" in content and "Modell-Training" not in content:
-            # Suche nach der NavBar
-            nav_index = content.find("<nav")
-            if nav_index >= 0:
-                nav_close_index = content.find("</nav>", nav_index)
-                if nav_close_index >= 0:
-                    # Finde die letzte <li> vor dem </ul>
-                    ul_close_index = content.rfind("</ul>", nav_index, nav_close_index)
-                    if ul_close_index >= 0:
-                        # Füge einen neuen Menüpunkt für Training hinzu
-                        training_link = "\n                <li><a href=\"/modell-training\" class=\"nav-link\"><i class=\"fas fa-brain\"></i> Modell-Training</a></li>\n            "
-                        new_content = content[:ul_close_index] + training_link + content[ul_close_index:]
-                        
-                        # Backup erstellen
-                        backup_path = unified_app_path.with_suffix(".html.bak")
-                        shutil.copy2(unified_app_path, backup_path)
-                        
-                        # Schreibe aktualisierte Datei
-                        with open(unified_app_path, "w", encoding="utf-8") as f:
-                            f.write(new_content)
-                        
-                        logger.info(f"Training-Link zu {unified_app_path} hinzugefügt")
-                        return
-        
-        logger.warning(f"Konnte keinen passenden Ort für den Training-Link in {unified_app_path} finden")
+    # Blueprint registrieren
+    app.register_blueprint(training_bp)
+    
+    # Debug-Ausgabe
+    logger.info(f"Registrierte Blueprints: {list(app.blueprints.keys())}")
+    
+    # App starten
+    print("=" * 80)
+    print("Starte erweiterte QA-App mit integriertem Modelltraining")
+    print("Sie können die Trainingsseite direkt unter http://localhost:5000/modell-training erreichen")
+    print("=" * 80)
+    app.run(debug=True, host='0.0.0.0')
 
 if __name__ == "__main__":
     main()
