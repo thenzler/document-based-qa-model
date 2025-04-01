@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title }}</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS mit SCODi 4P Design -->
+    <style>
+        :root {
+            --primary-color: {{ design.colors.primary }};
+            --secondary-color: {{ design.colors.secondary }};
+            --accent-color: {{ design.colors.accent }};
+            --success-color: {{ design.colors.success }};
+            --warning-color: {{ design.colors.warning }};
+            --error-color: {{ design.colors.error }};
+            --info-color: {{ design.colors.info }};
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .navbar {
+            background-color: var(--primary-color);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .navbar-brand {
+            color: white;
+            font-weight: 600;
+        }
+        
+        .navbar-nav .nav-link {
+            color: rgba(255, 255, 255, 0.85);
+            transition: color 0.3s;
+        }
+        
+        .navbar-nav .nav-link:hover,
+        .navbar-nav .nav-link.active {
+            color: white;
+        }
+        
+        .card {
+            border-radius: 10px;
+            border: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+            transition: transform 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card-header {
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 10px 10px 0 0 !important;
+            padding: 15px 20px;
+            font-weight: 600;
+        }
+        
+        .card-body {
+            padding: 20px;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .btn-primary:hover {
+            background-color: #006660;
+            border-color: #006660;
+        }
+        
+        .btn-outline-primary {
+            color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .btn-outline-primary:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        footer {
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 20px 0;
+            margin-top: auto;
+        }
+        
+        .sources-list {
+            max-height: 250px;
+            overflow-y: auto;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        
+        .source-item {
+            border-left: 3px solid var(--primary-color);
+            padding-left: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .source-title {
+            font-weight: 600;
+            color: var(--secondary-color);
+        }
+        
+        .source-text {
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        .relevance-badge {
+            background-color: var(--primary-color);
+            color: white;
+            font-size: 0.8rem;
+            padding: 3px 8px;
+            border-radius: 10px;
+        }
+        
+        .tab-content {
+            padding: 20px 0;
+        }
+        
+        .document-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .document-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.2s;
+        }
+        
+        .document-item:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .document-icon {
+            font-size: 1.5rem;
+            margin-right: 15px;
+            color: var(--secondary-color);
+        }
+        
+        .document-info {
+            flex-grow: 1;
+        }
+        
+        .document-title {
+            font-weight: 600;
+            margin-bottom: 0;
+        }
+        
+        .document-meta {
+            font-size: 0.8rem;
+            color: #777;
+        }
+        
+        .category-badge {
+            background-color: var(--info-color);
+            color: white;
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 5px;
+        }
+        
+        .answer-container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            margin-top: 20px;
+        }
+        
+        .answer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .answer-body {
+            white-space: pre-line;
+            margin-bottom: 20px;
+        }
+        
+        .settings-section {
+            margin-top: 20px;
+        }
+        
+        .api-status {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        .api-status.active {
+            background-color: var(--success-color);
+        }
+        
+        .api-status.inactive {
+            background-color: var(--error-color);
+        }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 10px;
+            z-index: 10;
+        }
+        
+        .loading-spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--primary-color);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-robot me-2"></i>
+                {{ design.company_name }} - Dokumentenbasiertes QA
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" id="status-btn">
+                            <i class="fas fa-circle-info me-1"></i> Status
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" id="settings-btn">
+                            <i class="fas fa-gear me-1"></i> Einstellungen
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="https://github.com/thenzler/document-based-qa-model" target="_blank">
+                            <i class="fab fa-github me-1"></i> GitHub
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container my-4">
+        <div class="row">
+            <!-- Main Interface -->
+            <div class="col-lg-8">
+                <!-- Main App Tabs -->
+                <ul class="nav nav-tabs" id="mainTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="qa-tab" data-bs-toggle="tab" data-bs-target="#qa-content" type="button" role="tab">
+                            <i class="fas fa-comment-dots me-1"></i> Frage & Antwort
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents-content" type="button" role="tab">
+                            <i class="fas fa-file-alt me-1"></i> Dokumente
+                        </button>
+                    </li>
+                </ul>
+                
+                <!-- Tab Content -->
+                <div class="tab-content" id="mainTabsContent">
+                    <!-- QA Tab -->
+                    <div class="tab-pane fade show active" id="qa-content" role="tabpanel">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-question-circle me-2"></i> Stellen Sie Ihre Frage</span>
+                            </div>
+                            <div class="card-body">
+                                <form id="question-form">
+                                    <div class="mb-3">
+                                        <textarea id="question-input" class="form-control" rows="3" placeholder="Ihre Frage hier eingeben..."></textarea>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="websearch-toggle">
+                                            <label class="form-check-label" for="websearch-toggle">Websearch für unbekannte Fragen</label>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-paper-plane me-1"></i> Frage stellen
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        
+                        <!-- Answer Container -->
+                        <div id="answer-container" class="answer-container" style="display: none;">
+                            <div class="answer-header">
+                                <h5 class="m-0"><i class="fas fa-robot me-2"></i> Antwort</h5>
+                                <span id="answer-info" class="badge bg-secondary"></span>
+                            </div>
+                            <div id="answer-body" class="answer-body"></div>
+                            
+                            <div id="sources-section">
+                                <h6><i class="fas fa-book me-1"></i> Quellen:</h6>
+                                <div id="sources-list" class="sources-list"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Recent Questions -->
+                        <div class="mt-4">
+                            <h5><i class="fas fa-history me-2"></i> Kürzlich gestellte Fragen</h5>
+                            <div id="recent-questions" class="list-group">
+                                <!-- Recent questions will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Documents Tab -->
+                    <div class="tab-pane fade" id="documents-content" role="tabpanel">
+                        <div class="card">
+                            <div class="card-header">
+                                <i class="fas fa-cloud-upload-alt me-2"></i> Dokumente hochladen
+                            </div>
+                            <div class="card-body">
+                                <form id="upload-form" enctype="multipart/form-data">
+                                    <div class="mb-3">
+                                        <label for="file-upload" class="form-label">Datei auswählen</label>
+                                        <input class="form-control" type="file" id="file-upload" name="file">
+                                        <div class="form-text">Unterstützte Formate: PDF, DOCX, TXT, MD, HTML, XLSX, PPTX, XML, CSV, JSON</div>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-upload me-1"></i> Hochladen
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        
+                        <!-- Document List -->
+                        <div class="card mt-4">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-folder-open me-2"></i> Dokumente</span>
+                                <button id="refresh-documents" class="btn btn-sm btn-outline-light">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <div id="document-list" class="document-list">
+                                    <!-- Document list will be inserted here -->
+                                    <p id="empty-docs-message" class="text-center text-muted">Keine Dokumente vorhanden</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sidebar -->
+            <div class="col-lg-4">
+                <!-- System Status Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-info-circle me-2"></i> System-Status
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Aktives LLM
+                                <span id="active-llm" class="badge bg-primary">-</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                OpenAI API
+                                <span id="openai-status">
+                                    <span class="api-status inactive"></span>
+                                    Nicht konfiguriert
+                                </span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Claude API
+                                <span id="claude-status">
+                                    <span class="api-status inactive"></span>
+                                    Nicht konfiguriert
+                                </span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Geladene Dokumente
+                                <span id="documents-count" class="badge bg-secondary">0</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Embedding-Modell
+                                <span id="embedding-model" class="badge bg-info text-wrap text-start" style="max-width: 200px">-</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Websearch
+                                <span id="websearch-status">
+                                    <span class="api-status inactive"></span>
+                                    Deaktiviert
+                                </span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Quick Tips Card -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <i class="fas fa-lightbulb me-2"></i> Tipps
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item">
+                                <i class="fas fa-check-circle text-success me-2"></i>
+                                Stellen Sie konkrete Fragen zu den hochgeladenen Dokumenten
+                            </li>
+                            <li class="list-group-item">
+                                <i class="fas fa-check-circle text-success me-2"></i>
+                                Laden Sie Dokumente im PDF, DOCX oder TXT-Format hoch
+                            </li>
+                            <li class="list-group-item">
+                                <i class="fas fa-check-circle text-success me-2"></i>
+                                Aktivieren Sie Websearch für bessere Antworten zu allgemeinen Fragen
+                            </li>
+                            <li class="list-group-item">
+                                <i class="fas fa-exclamation-circle text-warning me-2"></i>
+                                Prüfen Sie die Quellen für mehr Kontext zur Antwort
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modals -->
+    
+    <!-- Settings Modal -->
+    <div class="modal fade" id="settingsModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-gear me-2"></i> Einstellungen</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="api-settings-form">
+                        <div class="mb-3">
+                            <label for="openai-api-key" class="form-label">OpenAI API-Schlüssel</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="openai-api-key" placeholder="sk-...">
+                                <button class="btn btn-outline-secondary toggle-password" type="button">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="form-text">OpenAI API-Schlüssel für GPT-4 und Embeddings</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="claude-api-key" class="form-label">Anthropic Claude API-Schlüssel</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="claude-api-key" placeholder="sk-ant-...">
+                                <button class="btn btn-outline-secondary toggle-password" type="button">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="form-text">Claude API-Schlüssel als Fallback-LLM</div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Speichern</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Status Modal -->
+    <div class="modal fade" id="statusModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-circle-info me-2"></i> System-Status</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-3 text-muted">System-Informationen</h6>
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>Version</span>
+                                    <span>{{ design.app_version }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>Design-Typ</span>
+                                    <span>{{ design.design_type }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>Aktives LLM</span>
+                                    <span id="status-modal-llm">-</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>Embedding-Modell</span>
+                                    <span id="status-modal-embedding" class="text-truncate">-</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>Dokumente</span>
+                                    <span id="status-modal-documents">0</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>OpenAI API</span>
+                                    <span id="status-modal-openai">
+                                        <span class="api-status inactive"></span>
+                                        Nicht konfiguriert
+                                    </span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>Claude API</span>
+                                    <span id="status-modal-claude">
+                                        <span class="api-status inactive"></span>
+                                        Nicht konfiguriert
+                                    </span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>Websearch</span>
+                                    <span id="status-modal-websearch">
+                                        <span class="api-status inactive"></span>
+                                        Deaktiviert
+                                    </span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-center mt-3">
+                        <button id="refresh-status" class="btn btn-outline-primary">
+                            <i class="fas fa-sync-alt me-1"></i> Status aktualisieren
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast Container -->
+    <div class="toast-container"></div>
+    
+    <!-- Footer -->
+    <footer class="py-3 mt-4">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <p class="mb-0">{{ design.company_name }} &copy; {{ design.current_year }}</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p class="mb-0">
+                        <small>Version {{ design.app_version }} | Document-Based QA-System mit RAG</small>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- Main App JavaScript -->
+    <script>
+        $(document).ready(function() {
+            // Globale Variablen
+            let recentQuestions = [];
+            let documents = [];
+            
+            // Initialisiere System-Status
+            updateSystemStatus();
+            
+            // Event Listeners
+            
+            // Tab-Wechsel Event
+            $('#mainTabs button').on('click', function (e) {
+                e.preventDefault();
+                $(this).tab('show');
+                
+                // Wenn zu Dokumenten-Tab gewechselt wurde, lade Dokumente
+                if ($(this).attr('id') === 'documents-tab') {
+                    loadDocuments();
+                }
+            });
+            
+            // Frage stellen
+            $('#question-form').on('submit', function(e) {
+                e.preventDefault();
+                const question = $('#question-input').val().trim();
+                const useWebsearch = $('#websearch-toggle').is(':checked');
+                
+                if (question) {
+                    askQuestion(question, useWebsearch);
+                }
+            });
+            
+            // Dokument hochladen
+            $('#upload-form').on('submit', function(e) {
+                e.preventDefault();
+                const fileInput = $('#file-upload')[0];
+                
+                if (fileInput.files.length > 0) {
+                    uploadDocument(fileInput.files[0]);
+                } else {
+                    showToast('Bitte wählen Sie eine Datei aus', 'warning');
+                }
+            });
+            
+            // Aktualisiere Dokumente
+            $('#refresh-documents').on('click', function() {
+                loadDocuments();
+            });
+            
+            // API-Einstellungen speichern
+            $('#api-settings-form').on('submit', function(e) {
+                e.preventDefault();
+                
+                const openaiApiKey = $('#openai-api-key').val().trim();
+                const claudeApiKey = $('#claude-api-key').val().trim();
+                
+                saveApiKeys(openaiApiKey, claudeApiKey);
+            });
+            
+            // Passwort anzeigen/verbergen
+            $('.toggle-password').on('click', function() {
+                const passwordField = $(this).siblings('input');
+                const type = passwordField.attr('type') === 'password' ? 'text' : 'password';
+                passwordField.attr('type', type);
+                
+                // Ändere Icon
+                const icon = $(this).find('i');
+                icon.toggleClass('fa-eye fa-eye-slash');
+            });
+            
+            // Einstellungen öffnen
+            $('#settings-btn').on('click', function() {
+                $('#settingsModal').modal('show');
+            });
+            
+            // Status-Modal öffnen
+            $('#status-btn').on('click', function() {
+                updateStatusModal();
+                $('#statusModal').modal('show');
+            });
+            
+            // Status aktualisieren
+            $('#refresh-status').on('click', function() {
+                updateSystemStatus();
+                updateStatusModal();
+            });
+            
+            // Funktionen
+            
+            // System-Status abrufen und anzeigen
+            function updateSystemStatus() {
+                $.ajax({
+                    url: '/api/system/status',
+                    method: 'GET',
+                    success: function(data) {
+                        // Aktualisiere Status-Anzeige
+                        $('#active-llm').text(data.active_llm || 'Lokal');
+                        $('#documents-count').text(data.documents_loaded);
+                        $('#embedding-model').text(data.embedding_model || 'Nicht verfügbar');
+                        
+                        // API-Status
+                        if (data.api_status.openai) {
+                            $('#openai-status').html('<span class="api-status active"></span> Aktiv');
+                        } else {
+                            $('#openai-status').html('<span class="api-status inactive"></span> Nicht konfiguriert');
+                        }
+                        
+                        if (data.api_status.claude) {
+                            $('#claude-status').html('<span class="api-status active"></span> Aktiv');
+                        } else {
+                            $('#claude-status').html('<span class="api-status inactive"></span> Nicht konfiguriert');
+                        }
+                        
+                        // Websearch-Status
+                        if (data.websearch_enabled) {
+                            $('#websearch-status').html('<span class="api-status active"></span> Aktiviert');
+                        } else {
+                            $('#websearch-status').html('<span class="api-status inactive"></span> Deaktiviert');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Fehler beim Abrufen des System-Status:', error);
+                        showToast('Fehler beim Abrufen des System-Status', 'error');
+                    }
+                });
+            }
+            
+            // Status-Modal aktualisieren
+            function updateStatusModal() {
+                $.ajax({
+                    url: '/api/system/status',
+                    method: 'GET',
+                    success: function(data) {
+                        $('#status-modal-llm').text(data.active_llm || 'Lokal');
+                        $('#status-modal-embedding').text(data.embedding_model || 'Nicht verfügbar');
+                        $('#status-modal-documents').text(data.documents_loaded);
+                        
+                        // API-Status
+                        if (data.api_status.openai) {
+                            $('#status-modal-openai').html('<span class="api-status active"></span> Aktiv');
+                        } else {
+                            $('#status-modal-openai').html('<span class="api-status inactive"></span> Nicht konfiguriert');
+                        }
+                        
+                        if (data.api_status.claude) {
+                            $('#status-modal-claude').html('<span class="api-status active"></span> Aktiv');
+                        } else {
+                            $('#status-modal-claude').html('<span class="api-status inactive"></span> Nicht konfiguriert');
+                        }
+                        
+                        // Websearch-Status
+                        if (data.websearch_enabled) {
+                            $('#status-modal-websearch').html('<span class="api-status active"></span> Aktiviert');
+                        } else {
+                            $('#status-modal-websearch').html('<span class="api-status inactive"></span> Deaktiviert');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Fehler beim Abrufen des System-Status:', error);
+                    }
+                });
+            }
+            
+            // Dokumente laden
+            function loadDocuments() {
+                // Lade-Overlay anzeigen
+                const documentList = $('#document-list');
+                documentList.html('<div class="text-center p-3"><div class="spinner-border text-primary" role="status"></div><p class="mt-2">Lade Dokumente...</p></div>');
+                
+                $.ajax({
+                    url: '/api/documents',
+                    method: 'GET',
+                    success: function(data) {
+                        documents = data;
+                        displayDocuments(data);
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Fehler beim Laden der Dokumente:', error);
+                        documentList.html('<div class="alert alert-danger">Fehler beim Laden der Dokumente</div>');
+                    }
+                });
+            }
+            
+            // Dokumente anzeigen
+            function displayDocuments(docs) {
+                const documentList = $('#document-list');
+                documentList.empty();
+                
+                if (docs.length === 0) {
+                    $('#empty-docs-message').show();
+                    return;
+                }
+                
+                $('#empty-docs-message').hide();
+                
+                docs.forEach(function(doc) {
+                    const fileExtension = doc.file_type || getFileExtension(doc.filename);
+                    let iconClass = 'fas fa-file';
+                    
+                    // Icon je nach Dateityp
+                    switch(fileExtension) {
+                        case 'pdf':
+                            iconClass = 'fas fa-file-pdf';
+                            break;
+                        case 'docx':
+                        case 'doc':
+                            iconClass = 'fas fa-file-word';
+                            break;
+                        case 'xlsx':
+                        case 'xls':
+                        case 'csv':
+                            iconClass = 'fas fa-file-excel';
+                            break;
+                        case 'pptx':
+                        case 'ppt':
+                            iconClass = 'fas fa-file-powerpoint';
+                            break;
+                        case 'txt':
+                        case 'md':
+                            iconClass = 'fas fa-file-alt';
+                            break;
+                        case 'html':
+                        case 'xml':
+                        case 'json':
+                            iconClass = 'fas fa-file-code';
+                            break;
+                    }
+                    
+                    const docItem = $(`
+                        <div class="document-item">
+                            <div class="document-icon">
+                                <i class="${iconClass}"></i>
+                            </div>
+                            <div class="document-info">
+                                <h6 class="document-title">${doc.filename}</h6>
+                                <div class="document-meta">
+                                    ${formatFileSize(doc.size)} | ${doc.upload_date || 'Unbekannt'}
+                                    <span class="category-badge">${doc.category || 'allgemein'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `);
+                    
+                    documentList.append(docItem);
+                });
+            }
+            
+            // Frage stellen
+            function askQuestion(question, useWebsearch = false) {
+                // Lade-Overlay für Antwortbereich anzeigen
+                const answerContainer = $('#answer-container');
+                answerContainer.show();
+                answerContainer.html(`
+                    <div class="loading-overlay">
+                        <div>
+                            <div class="loading-spinner mb-3"></div>
+                            <p class="text-center">Verarbeite Ihre Frage...</p>
+                        </div>
+                    </div>
+                    <div class="answer-header">
+                        <h5 class="m-0"><i class="fas fa-robot me-2"></i> Antwort</h5>
+                        <span id="answer-info" class="badge bg-secondary"></span>
+                    </div>
+                    <div id="answer-body" class="answer-body"></div>
+                    <div id="sources-section">
+                        <h6><i class="fas fa-book me-1"></i> Quellen:</h6>
+                        <div id="sources-list" class="sources-list"></div>
+                    </div>
+                `);
+                
+                $.ajax({
+                    url: '/api/ask',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        question: question,
+                        useWebsearch: useWebsearch
+                    }),
+                    success: function(data) {
+                        // Entferne Lade-Overlay
+                        $('.loading-overlay').remove();
+                        
+                        // Zeige Antwort
+                        $('#answer-body').text(data.answer);
+                        
+                        // Info-Badge
+                        let badgeText = data.used_llm ? `${data.used_llm}` : 'Lokal';
+                        if (data.used_websearch) {
+                            badgeText += ' + Web';
+                        }
+                        badgeText += ` (${data.processing_time.toFixed(2)}s)`;
+                        $('#answer-info').text(badgeText);
+                        
+                        // Zeige Quellen
+                        displaySources(data.sources);
+                        
+                        // Aktualisiere kürzlich gestellte Fragen
+                        if (!recentQuestions.includes(question)) {
+                            recentQuestions.unshift(question);
+                            if (recentQuestions.length > 5) {
+                                recentQuestions.pop();
+                            }
+                            updateRecentQuestions();
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Fehler beim Stellen der Frage:', error);
+                        
+                        // Entferne Lade-Overlay
+                        $('.loading-overlay').remove();
+                        
+                        // Zeige Fehlermeldung
+                        $('#answer-body').html(`
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-circle me-2"></i>
+                                Es ist ein Fehler aufgetreten: ${xhr.responseJSON?.error || error}
+                            </div>
+                        `);
+                        
+                        $('#sources-section').hide();
+                        $('#answer-info').text('Fehler');
+                    }
+                });
+            }
+            
+            // Quellen anzeigen
+            function displaySources(sources) {
+                const sourcesList = $('#sources-list');
+                sourcesList.empty();
+                
+                if (!sources || sources.length === 0) {
+                    sourcesList.html('<p class="text-muted">Keine Quellen verfügbar</p>');
+                    return;
+                }
+                
+                sources.forEach(function(source) {
+                    const relevanceScore = source.relevanceScore ? Math.round(source.relevanceScore * 100) : 0;
+                    const sourceItem = $(`
+                        <div class="source-item">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <div class="source-title">${source.filename || source.source}</div>
+                                <span class="relevance-badge">${relevanceScore}%</span>
+                            </div>
+                    `);
+                    
+                    // Füge passende Sätze hinzu
+                    const matchingContent = $('<div class="source-text"></div>');
+                    if (source.matchingSentences && source.matchingSentences.length > 0) {
+                        source.matchingSentences.forEach(function(sentence) {
+                            matchingContent.append(`<p>${sentence}</p>`);
+                        });
+                    } else {
+                        matchingContent.append('<p>Keine spezifischen Sätze</p>');
+                    }
+                    
+                    sourceItem.append(matchingContent);
+                    sourcesList.append(sourceItem);
+                });
+            }
+            
+            // Dokument hochladen
+            function uploadDocument(file) {
+                // Erstelle FormData
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                // Zeige Ladeanimation
+                $('#upload-form').append(`
+                    <div class="loading-overlay">
+                        <div>
+                            <div class="loading-spinner mb-3"></div>
+                            <p class="text-center">Dokument wird hochgeladen und verarbeitet...</p>
+                        </div>
+                    </div>
+                `);
+                
+                $.ajax({
+                    url: '/api/documents/upload',
+                    method: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(data) {
+                        // Entferne Ladeanimation
+                        $('.loading-overlay').remove();
+                        
+                        // Zeige Erfolgsmeldung
+                        showToast(data.message, 'success');
+                        
+                        // Leere das Formular
+                        $('#file-upload').val('');
+                        
+                        // Aktualisiere Dokumentenliste
+                        loadDocuments();
+                        
+                        // Aktualisiere System-Status
+                        updateSystemStatus();
+                    },
+                    error: function(xhr, status, error) {
+                        // Entferne Ladeanimation
+                        $('.loading-overlay').remove();
+                        
+                        console.error('Fehler beim Hochladen des Dokuments:', error);
+                        showToast(xhr.responseJSON?.error || 'Fehler beim Hochladen des Dokuments', 'error');
+                    }
+                });
+            }
+            
+            // API-Schlüssel speichern
+            function saveApiKeys(openaiApiKey, claudeApiKey) {
+                // Zeige Ladeanimation
+                $('#api-settings-form').append(`
+                    <div class="loading-overlay">
+                        <div>
+                            <div class="loading-spinner mb-3"></div>
+                            <p class="text-center">API-Schlüssel werden gespeichert...</p>
+                        </div>
+                    </div>
+                `);
+                
+                const data = {};
+                if (openaiApiKey) data.openai_api_key = openaiApiKey;
+                if (claudeApiKey) data.claude_api_key = claudeApiKey;
+                
+                $.ajax({
+                    url: '/api/system/set_api_keys',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(data),
+                    success: function(response) {
+                        // Entferne Ladeanimation
+                        $('.loading-overlay').remove();
+                        
+                        // Zeige Erfolgsmeldung
+                        showToast('API-Schlüssel erfolgreich gespeichert', 'success');
+                        
+                        // Schließe Modal
+                        $('#settingsModal').modal('hide');
+                        
+                        // Aktualisiere System-Status
+                        updateSystemStatus();
+                    },
+                    error: function(xhr, status, error) {
+                        // Entferne Ladeanimation
+                        $('.loading-overlay').remove();
+                        
+                        console.error('Fehler beim Speichern der API-Schlüssel:', error);
+                        showToast('Fehler beim Speichern der API-Schlüssel', 'error');
+                    }
+                });
+            }
+            
+            // Kürzlich gestellte Fragen aktualisieren
+            function updateRecentQuestions() {
+                const recentQuestionsContainer = $('#recent-questions');
+                recentQuestionsContainer.empty();
+                
+                if (recentQuestions.length === 0) {
+                    recentQuestionsContainer.html('<p class="text-muted">Keine kürzlich gestellten Fragen</p>');
+                    return;
+                }
+                
+                recentQuestions.forEach(function(question) {
+                    const questionItem = $(`
+                        <button class="list-group-item list-group-item-action">
+                            <i class="fas fa-history me-2 text-muted"></i> ${question}
+                        </button>
+                    `);
+                    
+                    // Frage erneut stellen bei Klick
+                    questionItem.on('click', function() {
+                        $('#question-input').val(question);
+                        $('html, body').animate({
+                            scrollTop: $('#question-form').offset().top - 20
+                        }, 500);
+                    });
+                    
+                    recentQuestionsContainer.append(questionItem);
+                });
+            }
+            
+            // Toast-Nachricht anzeigen
+            function showToast(message, type = 'info') {
+                const toastContainer = $('.toast-container');
+                
+                // Toast-Farbe je nach Typ
+                let bgClass = 'bg-info';
+                let icon = 'fas fa-info-circle';
+                
+                switch (type) {
+                    case 'success':
+                        bgClass = 'bg-success';
+                        icon = 'fas fa-check-circle';
+                        break;
+                    case 'warning':
+                        bgClass = 'bg-warning';
+                        icon = 'fas fa-exclamation-triangle';
+                        break;
+                    case 'error':
+                        bgClass = 'bg-danger';
+                        icon = 'fas fa-exclamation-circle';
+                        break;
+                }
+                
+                const toast = $(`
+                    <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="toast-header ${bgClass} text-white">
+                            <i class="${icon} me-2"></i>
+                            <strong class="me-auto">Hinweis</strong>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                        <div class="toast-body">
+                            ${message}
+                        </div>
+                    </div>
+                `);
+                
+                toastContainer.append(toast);
+                
+                const bsToast = new bootstrap.Toast(toast[0], {
+                    delay: 5000,
+                    autohide: true
+                });
+                
+                bsToast.show();
+                
+                // Entferne Toast nach dem Ausblenden
+                toast.on('hidden.bs.toast', function() {
+                    toast.remove();
+                });
+            }
+            
+            // Hilfsfunktionen
+            
+            // Dateigröße formatieren
+            function formatFileSize(size) {
+                if (!size) return 'Unbekannt';
+                
+                const units = ['B', 'KB', 'MB', 'GB'];
+                let formattedSize = size;
+                let unitIndex = 0;
+                
+                while (formattedSize >= 1024 && unitIndex < units.length - 1) {
+                    formattedSize /= 1024;
+                    unitIndex++;
+                }
+                
+                return `${formattedSize.toFixed(1)} ${units[unitIndex]}`;
+            }
+            
+            // Dateierweiterung extrahieren
+            function getFileExtension(filename) {
+                if (!filename) return '';
+                return filename.split('.').pop().toLowerCase();
+            }
+        });
+    </script>
+</body>
+</html>
