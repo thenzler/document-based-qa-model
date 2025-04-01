@@ -451,28 +451,39 @@ class LocalModelTrainer:
             if onnx_export and self.model_type == "qa" and OPTIMUM_AVAILABLE:
                 logger.info("Exportiere Modell ins ONNX-Format...")
                 
-                # Optimierungskonfiguration
-                optimization_config = OptimizationConfig(
-                    optimization_level=99,  # Maximale Optimierung
-                )
+                # Stelle sicher, dass das final_model-Verzeichnis existiert
+                final_model_dir = self.output_dir / "final_model"
+                os.makedirs(final_model_dir, exist_ok=True)
                 
-                # Konvertiere und optimiere
-                ort_model = ORTModelForQuestionAnswering.from_pretrained(
-                    self.output_dir / "final_model",
-                    optimization_config=optimization_config,
-                )
-                
-                # Speichere ONNX-Modell
-                ort_model.save_pretrained(optimized_dir / "onnx")
-                self.tokenizer.save_pretrained(optimized_dir / "onnx")
-                
-                logger.info(f"ONNX-Modell gespeichert in: {optimized_dir / 'onnx'}")
-                
-                # Aktualisiere Modell-Info
-                self.model_info["optimized"] = {
-                    "onnx_exported": True,
-                    "optimization_date": datetime.now().isoformat()
-                }
+                # Prüfe, ob das Modell im final_model-Verzeichnis existiert
+                if not os.path.exists(final_model_dir / "pytorch_model.bin"):
+                    logger.warning(f"Kein Modell in {final_model_dir} gefunden. ONNX-Export wird übersprungen.")
+                else:
+                    try:
+                        # Optimierungskonfiguration
+                        optimization_config = OptimizationConfig(
+                            optimization_level=99,  # Maximale Optimierung
+                        )
+                        
+                        # Konvertiere und optimiere
+                        ort_model = ORTModelForQuestionAnswering.from_pretrained(
+                            final_model_dir,
+                            optimization_config=optimization_config,
+                        )
+                        
+                        # Speichere ONNX-Modell
+                        ort_model.save_pretrained(optimized_dir / "onnx")
+                        self.tokenizer.save_pretrained(optimized_dir / "onnx")
+                        
+                        logger.info(f"ONNX-Modell gespeichert in: {optimized_dir / 'onnx'}")
+                        
+                        # Aktualisiere Modell-Info
+                        self.model_info["optimized"] = {
+                            "onnx_exported": True,
+                            "optimization_date": datetime.now().isoformat()
+                        }
+                    except Exception as e:
+                        logger.error(f"Fehler beim ONNX-Export: {e}")
             elif onnx_export and not OPTIMUM_AVAILABLE:
                 logger.warning("ONNX-Export übersprungen, da optimum nicht verfügbar ist.")
                 
@@ -579,6 +590,9 @@ class LocalModelTrainer:
             # Erstelle ZIP-Archiv
             zip_filename = f"local_qa_model_{base_model_short}_{version}_{date_str}.zip"
             zip_path = output_dir / zip_filename
+            
+            # Definiere die Variable 'answer' hier, um den Fehler zu beheben
+            answer = "Diese Variable wird im README-Beispielcode verwendet"
             
             shutil.make_archive(
                 str(zip_path).replace(".zip", ""),
