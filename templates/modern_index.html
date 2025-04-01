@@ -4,55 +4,55 @@
 <div class="scodi-dashboard">
     <!-- Headline -->
     <div class="scodi-center">
-        <h1>Fragen stellen</h1>
+        <h1>Document-Based Question Answering</h1>
     </div>
     
     <!-- Features Section -->
     <div class="scodi-section-title">
-        <h2>Funktionen</h2>
-        <p>Unser dokumentenbasiertes QA-System bietet verschiedene Möglichkeiten, Ihre Dokumente zu nutzen.</p>
+        <h2>Features</h2>
+        <p>Our document-based QA system offers various ways to interact with your documents.</p>
     </div>
     
     <div class="feature-cards">
-        <!-- Frage & Antwort Card -->
+        <!-- Question & Answer Card -->
         <div class="scodi-card feature-card">
             <div class="scodi-center">
                 <div class="scodi-card-icon">
                     <i class="fas fa-question-circle"></i>
                 </div>
-                <h3 class="scodi-card-title">Frage & Antwort</h3>
+                <h3 class="scodi-card-title">Question & Answer</h3>
                 <p class="scodi-card-content">
-                    Stellen Sie Fragen zu Ihren Dokumenten und erhalten Sie präzise Antworten mit Quellenangaben.
+                    Ask questions about your documents and get precise answers with source references.
                 </p>
-                <a href="/qa" class="scodi-btn scodi-btn-primary">Jetzt ausprobieren</a>
+                <a href="/qa" class="scodi-btn scodi-btn-primary">Try Now</a>
             </div>
         </div>
         
-        <!-- Dokumentenverwaltung Card -->
+        <!-- Document Management Card -->
         <div class="scodi-card feature-card">
             <div class="scodi-center">
                 <div class="scodi-card-icon">
                     <i class="fas fa-file-alt"></i>
                 </div>
-                <h3 class="scodi-card-title">Dokumentenverwaltung</h3>
+                <h3 class="scodi-card-title">Document Management</h3>
                 <p class="scodi-card-content">
-                    Laden Sie Dokumente hoch, organisieren Sie sie in Kategorien und verarbeiten Sie sie für optimale Ergebnisse.
+                    Upload documents, organize them in categories, and process them for optimal results.
                 </p>
-                <a href="/documents" class="scodi-btn scodi-btn-primary">Dokumente verwalten</a>
+                <a href="/documents" class="scodi-btn scodi-btn-primary">Manage Documents</a>
             </div>
         </div>
         
-        <!-- Churn-Prediction Card -->
+        <!-- Advanced ML Card -->
         <div class="scodi-card feature-card">
             <div class="scodi-center">
                 <div class="scodi-card-icon">
-                    <i class="fas fa-chart-line"></i>
+                    <i class="fas fa-brain"></i>
                 </div>
-                <h3 class="scodi-card-title">Churn-Prediction</h3>
+                <h3 class="scodi-card-title">Advanced ML</h3>
                 <p class="scodi-card-content">
-                    Analysieren Sie Kundendaten, identifizieren Sie Abwanderungsrisiken und erhalten Sie Handlungsempfehlungen.
+                    Utilizes state-of-the-art Retrieval Augmented Generation (RAG) for more accurate answers.
                 </p>
-                <a href="/churn" class="scodi-btn scodi-btn-primary">Analysen starten</a>
+                <a href="/qa" class="scodi-btn scodi-btn-primary">Experience It</a>
             </div>
         </div>
     </div>
@@ -60,10 +60,10 @@
     <!-- System Initialization Section -->
     <div class="scodi-section">
         <div class="scodi-center">
-            <h2>System starten</h2>
-            <p>Bevor Sie beginnen, initialisieren Sie das System, um die Dokumente zu verarbeiten und die Modelle zu laden.</p>
+            <h2>System Start</h2>
+            <p>Before you begin, initialize the system to process documents and load models.</p>
             <button id="btn-initialize" class="scodi-btn scodi-btn-primary">
-                <span id="btn-text">System initialisieren</span>
+                <span id="btn-text">Initialize System</span>
                 <span id="init-loader" class="scodi-spinner" style="display: none;"></span>
             </button>
         </div>
@@ -72,45 +72,142 @@
     <!-- Quick Start Section -->
     <div class="scodi-section scodi-section-alt">
         <div class="scodi-section-title">
-            <h2>Schnelleinstieg</h2>
-            <p>Folgen Sie diesen Schritten, um mit dem System zu beginnen:</p>
+            <h2>Quick Start</h2>
+            <p>Follow these steps to get started with the system:</p>
         </div>
         
         <div class="scodi-steps">
             <div class="scodi-step">
                 <div class="scodi-step-number">1</div>
                 <div>
-                    <h3>Initialisieren</h3>
-                    <p>Initialisieren Sie das System, um die Dokumente zu verarbeiten und die Modelle zu laden.</p>
+                    <h3>Initialize</h3>
+                    <p>Initialize the system to process documents and load models.</p>
                 </div>
             </div>
             
             <div class="scodi-step">
                 <div class="scodi-step-number">2</div>
                 <div>
-                    <h3>Dokumente</h3>
-                    <p>Laden Sie Dokumente hoch, organisieren Sie sie in Kategorien.</p>
+                    <h3>Documents</h3>
+                    <p>Upload documents and organize them in categories.</p>
                 </div>
             </div>
             
             <div class="scodi-step">
                 <div class="scodi-step-number">3</div>
                 <div>
-                    <h3>Fragen</h3>
-                    <p>Stellen Sie Fragen zu Ihren Dokumenten oder nutzen Sie die Churn-Prediction.</p>
+                    <h3>Questions</h3>
+                    <p>Ask questions about your documents.</p>
                 </div>
             </div>
             
             <div class="scodi-step">
                 <div class="scodi-step-number">4</div>
                 <div>
-                    <h3>Analysieren</h3>
-                    <p>Arbeiten Sie mit den Antworten und Empfehlungen.</p>
+                    <h3>Analyze</h3>
+                    <p>Work with answers and their references.</p>
                 </div>
             </div>
         </div>
     </div>
+    
+    <!-- Technology Section -->
+    <div class="scodi-section">
+        <div class="scodi-section-title">
+            <h2>Technology</h2>
+            <p>Our system is powered by state-of-the-art machine learning technologies:</p>
+        </div>
+        
+        <div class="tech-grid">
+            <div class="tech-item">
+                <div class="tech-icon">
+                    <i class="fas fa-database"></i>
+                </div>
+                <h3>Vector Database</h3>
+                <p>FAISS vector database for efficient semantic search of document chunks.</p>
+            </div>
+            
+            <div class="tech-item">
+                <div class="tech-icon">
+                    <i class="fas fa-project-diagram"></i>
+                </div>
+                <h3>Embeddings</h3>
+                <p>Transformer-based embeddings for accurate semantic understanding.</p>
+            </div>
+            
+            <div class="tech-item">
+                <div class="tech-icon">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <h3>LLM Technology</h3>
+                <p>Advanced language models for contextual answer generation.</p>
+            </div>
+            
+            <div class="tech-item">
+                <div class="tech-icon">
+                    <i class="fas fa-search"></i>
+                </div>
+                <h3>Cross-Encoder</h3>
+                <p>Reranking with cross-encoders for more precise document retrieval.</p>
+            </div>
+        </div>
+    </div>
 </div>
+{% endblock %}
+
+{% block styles %}
+<style>
+    .tech-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 20px;
+        margin-top: 2rem;
+    }
+    
+    .tech-item {
+        background-color: white;
+        padding: 1.5rem;
+        border-radius: var(--scodi-border-radius);
+        box-shadow: var(--scodi-box-shadow);
+        transition: transform 0.3s, box-shadow 0.3s;
+    }
+    
+    .tech-item:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--scodi-hover-shadow);
+    }
+    
+    .tech-icon {
+        font-size: 2rem;
+        color: var(--scodi-primary);
+        margin-bottom: 1rem;
+    }
+    
+    .tech-item h3 {
+        margin-bottom: 0.5rem;
+        color: var(--scodi-secondary);
+    }
+    
+    .scodi-steps {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        margin: 2rem 0;
+    }
+    
+    .scodi-step {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 1.5rem;
+        width: calc(50% - 1rem);
+    }
+    
+    @media (max-width: 768px) {
+        .scodi-step {
+            width: 100%;
+        }
+    }
+</style>
 {% endblock %}
 
 {% block scripts %}
@@ -121,12 +218,12 @@
         const initLoader = document.getElementById('init-loader');
         
         btnInitialize.addEventListener('click', function() {
-            // Zeige Ladeanimation
-            btnText.textContent = 'Initialisiere...';
+            // Show loading animation
+            btnText.textContent = 'Initializing...';
             initLoader.style.display = 'inline-block';
             btnInitialize.disabled = true;
             
-            // Sende Anfrage zur Initialisierung
+            // Send initialization request
             fetch('/api/init', {
                 method: 'POST',
                 headers: {
@@ -136,14 +233,14 @@
             .then(response => response.json())
             .then(data => {
                 if (data.error) {
-                    alert('Fehler bei der Initialisierung: ' + data.error);
+                    alert('Error during initialization: ' + data.error);
                 } else {
-                    alert('System erfolgreich initialisiert!');
-                    btnText.textContent = 'System initialisiert';
+                    alert('System successfully initialized!');
+                    btnText.textContent = 'System Initialized';
                 }
             })
             .catch(error => {
-                alert('Fehler bei der Initialisierung: ' + error.message);
+                alert('Error during initialization: ' + error.message);
             })
             .finally(() => {
                 initLoader.style.display = 'none';
