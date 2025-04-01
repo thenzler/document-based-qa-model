@@ -3,89 +3,174 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ page_title|default('SCODi 4P - Dokumentenbasiertes QA') }}</title>
+    <title>{{ page_title | default('SCODi 4P Document QA System') }}</title>
     
-    <!-- Bootstrap CSS (minimale Version) -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <!-- Favicon -->
+    <link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
     
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
-    <!-- SCODi 4P Modern CSS -->
+    <!-- SCODi 4P Stylesheet -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/scodi-4p-modern.css') }}">
     
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+    <!-- Additional styles -->
+    {% block styles %}{% endblock %}
     
-    {% block head_extra %}{% endblock %}
+    <!-- SCODi 4P Custom Styles -->
+    <style>
+        /* Custom styles for specific components */
+        .scodi-top-nav {
+            background-color: {{ design.colors.secondary }};
+            color: white;
+        }
+        
+        .scodi-top-nav a {
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .scodi-top-nav a:hover,
+        .scodi-top-nav a.active {
+            color: white;
+        }
+        
+        .scodi-footer {
+            background-color: {{ design.colors.secondary }};
+            color: white;
+            padding: 2rem 0;
+            margin-top: 3rem;
+        }
+        
+        .scodi-footer a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        
+        .scodi-footer a:hover {
+            color: white;
+        }
+        
+        .scodi-footer-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+        
+        .scodi-footer-links {
+            display: flex;
+            gap: 1.5rem;
+        }
+        
+        @media (max-width: 768px) {
+            .scodi-footer-content {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+        }
+        
+        /* Background pattern */
+        .page-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #f8f9fa;
+            background-image: radial-gradient(circle at 1px 1px, {{ design.colors.secondary }}10 1px, transparent 0);
+            background-size: 40px 40px;
+            z-index: -1;
+        }
+        
+        /* Main content wrapper */
+        .main-wrapper {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            margin-top: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        /* System badge */
+        .system-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            margin-left: 0.5rem;
+            border-radius: 4px;
+            background-color: {{ design.colors.primary }};
+            color: white;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
-    <!-- Logo -->
-    <div class="scodi-logo">
-        <a href="/">
-            <img src="{{ url_for('static', filename='img/scodi-4p-logo.svg') }}" 
-                 onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 30"><polygon points="15,5 25,15 15,25 5,15" fill="%23007f78"/><text x="35" y="20" font-family="Arial" font-size="12" fill="%23007f78">SCODi 4P</text></svg>';"
-                 alt="SCODi 4P Logo">
-        </a>
-    </div>
+    <!-- Background Pattern -->
+    <div class="page-background"></div>
     
-    <!-- Top Navigation -->
+    <!-- Header with Logo -->
+    <header class="scodi-logo">
+        <div class="scodi-container">
+            <div style="display: flex; align-items: center; justify-content: center;">
+                <h1 style="display: flex; align-items: center;">
+                    <span style="color: {{ design.colors.primary }}">Document QA System</span>
+                    <span class="system-badge">{{ design.model_name }}</span>
+                </h1>
+            </div>
+        </div>
+    </header>
+    
+    <!-- Navigation -->
     <nav class="scodi-top-nav">
         <ul>
             <li>
-                <a href="/" class="{% if request.path == '/' %}active{% endif %}">
+                <a href="{{ url_for('index') }}" {% if request.path == '/' %}class="active"{% endif %}>
                     <i class="fas fa-home"></i>
-                    <span>Übersicht</span>
+                    Home
                 </a>
             </li>
             <li>
-                <a href="/qa" class="{% if request.path == '/qa' %}active{% endif %}">
+                <a href="{{ url_for('qa_page') }}" {% if '/qa' in request.path %}class="active"{% endif %}>
                     <i class="fas fa-question-circle"></i>
-                    <span>Frage & Antwort</span>
+                    Question & Answer
                 </a>
             </li>
             <li>
-                <a href="/documents" class="{% if request.path == '/documents' %}active{% endif %}">
+                <a href="{{ url_for('documents_page') }}" {% if '/documents' in request.path %}class="active"{% endif %}>
                     <i class="fas fa-file-alt"></i>
-                    <span>Dokumente</span>
+                    Documents
                 </a>
             </li>
-            <li>
-                <a href="/churn" class="{% if request.path == '/churn' %}active{% endif %}">
-                    <i class="fas fa-chart-line"></i>
-                    <span>Churn-Prediction</span>
-                </a>
-            </li>
-            {% if design.show_process_menu|default(false) %}
-            <li>
-                <a href="/processes" class="{% if request.path == '/processes' %}active{% endif %}">
-                    <i class="fas fa-project-diagram"></i>
-                    <span>Prozesse</span>
-                </a>
-            </li>
-            {% endif %}
         </ul>
     </nav>
-
+    
     <!-- Main Content -->
-    <div class="scodi-container scodi-content">
+    <main class="main-wrapper">
         {% block content %}{% endblock %}
-    </div>
-
+    </main>
+    
+    <!-- Footer -->
+    <footer class="scodi-footer">
+        <div class="scodi-footer-content">
+            <div>
+                &copy; {{ design.current_year }} {{ design.company_name }} | SCODi 4P Document QA System v{{ design.app_version }}
+            </div>
+            <div class="scodi-footer-links">
+                <a href="#">Privacy Policy</a>
+                <a href="#">Terms of Service</a>
+                <a href="#">Contact</a>
+            </div>
+        </div>
+    </footer>
+    
     <!-- Scripts -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- SCODi 4P JS -->
-    <script src="{{ url_for('static', filename='js/scodi-4p.js') }}"></script>
-    
     {% block scripts %}{% endblock %}
-    
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Wird auf allen Seiten ausgeführt
-            console.log('SCODi 4P Modern Design geladen');
-        });
-    </script>
 </body>
 </html>

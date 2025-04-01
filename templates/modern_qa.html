@@ -1,0 +1,260 @@
+{% extends 'modern_layout.html' %}
+
+{% block content %}
+<div class="scodi-dashboard">
+    <!-- Headline -->
+    <div class="scodi-center">
+        <h1>Ask Questions About Your Documents</h1>
+        <p>Powered by {{ design.model_name }}</p>
+    </div>
+    
+    <!-- Question Form -->
+    <div class="question-form">
+        <div class="scodi-form-group">
+            <label for="question-input" class="scodi-form-label">Your Question:</label>
+            <textarea id="question-input" class="scodi-form-control" rows="3" placeholder="Ask a question about your documents..."></textarea>
+        </div>
+        <div class="scodi-center" style="margin-top: 1rem;">
+            <button id="btn-ask" class="scodi-btn scodi-btn-primary">
+                <span id="btn-text">Ask Question</span>
+                <span id="query-loader" class="scodi-spinner" style="display: none;"></span>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Advanced Options -->
+    <div class="scodi-card" style="margin-bottom: 2rem;">
+        <div class="scodi-form-group">
+            <label class="scodi-form-label">
+                <input type="checkbox" id="advanced-options-toggle"> Show Advanced Options
+            </label>
+        </div>
+        <div id="advanced-options" style="display: none;">
+            <div class="scodi-form-group">
+                <label for="topk-slider" class="scodi-form-label">Number of documents to search ({{ '{{ topK }}' }}):</label>
+                <input type="range" id="topk-slider" min="1" max="20" value="5" class="scodi-form-control">
+            </div>
+            <div class="scodi-form-group">
+                <label class="scodi-form-label">
+                    <input type="checkbox" id="use-generation" checked> Use generative answers (enhanced responses)
+                </label>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Answer Box -->
+    <div id="answer-container" style="display: none;">
+        <div class="scodi-section-title">
+            <h2>Answer</h2>
+        </div>
+        
+        <div class="answer-box">
+            <pre id="answer-text" style="white-space: pre-wrap; font-family: inherit;"></pre>
+            
+            <div class="sources-box" id="sources-container" style="display: none;">
+                <h3>Sources</h3>
+                <div id="sources-list">
+                    <!-- Sources will be listed here -->
+                </div>
+            </div>
+            
+            <div class="scodi-center" style="margin-top: 1rem;">
+                <p class="processing-time">Processing time: <span id="processing-time">0</span> seconds</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Questions -->
+    <div class="scodi-section">
+        <div class="scodi-section-title">
+            <h2>Recent Questions</h2>
+        </div>
+        
+        {% if recent_questions %}
+        <div class="scodi-card">
+            <ul id="recent-questions-list" class="recent-questions-list">
+                {% for question in recent_questions %}
+                <li>
+                    <a href="#" class="recent-question-link">{{ question }}</a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% else %}
+        <div class="scodi-empty-state">
+            <div class="scodi-empty-state-icon">
+                <i class="fas fa-question-circle"></i>
+            </div>
+            <h3>No Recent Questions</h3>
+            <p>Your recently asked questions will appear here.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const btnAsk = document.getElementById('btn-ask');
+        const btnText = document.getElementById('btn-text');
+        const queryLoader = document.getElementById('query-loader');
+        const questionInput = document.getElementById('question-input');
+        const answerContainer = document.getElementById('answer-container');
+        const answerText = document.getElementById('answer-text');
+        const sourcesContainer = document.getElementById('sources-container');
+        const sourcesList = document.getElementById('sources-list');
+        const processingTime = document.getElementById('processing-time');
+        const recentQuestionsLinks = document.querySelectorAll('.recent-question-link');
+        const advancedOptionsToggle = document.getElementById('advanced-options-toggle');
+        const advancedOptions = document.getElementById('advanced-options');
+        const topkSlider = document.getElementById('topk-slider');
+        const useGeneration = document.getElementById('use-generation');
+        
+        // Advanced options
+        let topK = 5;
+        
+        // Update topK value when slider changes
+        topkSlider.addEventListener('input', function() {
+            topK = parseInt(this.value);
+            document.querySelector('[for="topk-slider"]').innerHTML = `Number of documents to search (${topK}):`;
+        });
+        
+        // Toggle advanced options
+        advancedOptionsToggle.addEventListener('change', function() {
+            advancedOptions.style.display = this.checked ? 'block' : 'none';
+        });
+        
+        // Ask question function
+        function askQuestion(question) {
+            if (!question.trim()) {
+                alert('Please enter a question');
+                return;
+            }
+            
+            // Show loading state
+            btnText.textContent = 'Thinking...';
+            queryLoader.style.display = 'inline-block';
+            btnAsk.disabled = true;
+            
+            // Send API request
+            fetch('/api/qa/answer', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    question: question,
+                    useGeneration: useGeneration.checked,
+                    topK: topK
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    answerText.textContent = 'Error: ' + data.error;
+                } else {
+                    // Display answer
+                    answerText.textContent = data.answer;
+                    
+                    // Display sources if available
+                    if (data.sources && data.sources.length > 0) {
+                        sourcesContainer.style.display = 'block';
+                        sourcesList.innerHTML = ''; // Clear previous sources
+                        
+                        data.sources.forEach(source => {
+                            const sourceItem = document.createElement('div');
+                            sourceItem.className = 'source-item';
+                            
+                            let sourceHTML = `<strong>File:</strong> ${escapeHTML(source.filename)}<br>`;
+                            sourceHTML += `<strong>Relevance:</strong> ${Math.round(source.relevanceScore * 100)}%<br>`;
+                            
+                            if (source.matchingSentences && source.matchingSentences.length > 0) {
+                                sourceHTML += `<div class="matching-text">${escapeHTML(source.matchingSentences[0])}</div>`;
+                            }
+                            
+                            sourceItem.innerHTML = sourceHTML;
+                            sourcesList.appendChild(sourceItem);
+                        });
+                    } else {
+                        sourcesContainer.style.display = 'none';
+                    }
+                    
+                    // Show processing time
+                    processingTime.textContent = data.processingTime ? data.processingTime.toFixed(2) : '?';
+                    
+                    // Update recent questions list if it exists
+                    const recentList = document.getElementById('recent-questions-list');
+                    if (recentList) {
+                        const newItem = document.createElement('li');
+                        const newLink = document.createElement('a');
+                        newLink.href = '#';
+                        newLink.className = 'recent-question-link';
+                        newLink.textContent = question;
+                        newLink.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            questionInput.value = this.textContent;
+                            askQuestion(this.textContent);
+                        });
+                        
+                        newItem.appendChild(newLink);
+                        recentList.insertBefore(newItem, recentList.firstChild);
+                        
+                        // Remove last item if more than 5
+                        if (recentList.children.length > 5) {
+                            recentList.removeChild(recentList.lastChild);
+                        }
+                    }
+                }
+                
+                // Show answer container
+                answerContainer.style.display = 'block';
+                
+                // Scroll to answer
+                answerContainer.scrollIntoView({ behavior: 'smooth' });
+            })
+            .catch(error => {
+                answerText.textContent = 'Error: ' + error.message;
+                answerContainer.style.display = 'block';
+            })
+            .finally(() => {
+                // Reset button state
+                btnText.textContent = 'Ask Question';
+                queryLoader.style.display = 'none';
+                btnAsk.disabled = false;
+            });
+        }
+        
+        // Escape HTML to prevent XSS
+        function escapeHTML(str) {
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+        
+        // Ask question button event
+        btnAsk.addEventListener('click', function() {
+            askQuestion(questionInput.value);
+        });
+        
+        // Enter key to submit
+        questionInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                askQuestion(this.value);
+            }
+        });
+        
+        // Recent questions click event
+        recentQuestionsLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                questionInput.value = this.textContent;
+                askQuestion(this.textContent);
+            });
+        });
+    });
+</script>
+{% endblock %}

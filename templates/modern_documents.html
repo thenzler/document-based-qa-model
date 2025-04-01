@@ -1,0 +1,428 @@
+{% extends 'modern_layout.html' %}
+
+{% block content %}
+<div class="scodi-dashboard">
+    <!-- Headline -->
+    <div class="scodi-center">
+        <h1>Document Management</h1>
+        <p>Upload and manage your documents for the QA system</p>
+    </div>
+    
+    <!-- Upload Section -->
+    <div class="scodi-section">
+        <div class="scodi-section-title">
+            <h2>Upload Document</h2>
+            <p>Upload new documents to be processed by the system</p>
+        </div>
+        
+        <div class="scodi-card">
+            <form id="upload-form" enctype="multipart/form-data">
+                <div class="scodi-form-group">
+                    <label for="file-upload" class="scodi-form-label">Select Document:</label>
+                    <input type="file" id="file-upload" name="file" class="scodi-form-control" accept=".txt,.pdf,.docx,.md,.html,.xlsx,.xml">
+                    <small>Supported formats: TXT, PDF, DOCX, MD, HTML, XLSX, XML</small>
+                </div>
+                
+                <div class="scodi-form-group">
+                    <label for="category-select" class="scodi-form-label">Category:</label>
+                    <select id="category-select" name="category" class="scodi-form-control">
+                        <option value="general">General</option>
+                        <option value="documentation">Documentation</option>
+                        <option value="product">Product</option>
+                        <option value="company">Company</option>
+                        <option value="technical">Technical</option>
+                    </select>
+                </div>
+                
+                <div class="scodi-center">
+                    <button type="submit" class="scodi-btn scodi-btn-primary" id="btn-upload">
+                        <span id="upload-btn-text">Upload Document</span>
+                        <span id="upload-loader" class="scodi-spinner" style="display: none;"></span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Documents Section -->
+    <div class="scodi-section">
+        <div class="scodi-section-title">
+            <h2>Loaded Documents</h2>
+            <p>Documents currently loaded in the system</p>
+        </div>
+        
+        <div class="scodi-card">
+            <div class="documents-actions">
+                <button id="btn-process-all" class="scodi-btn scodi-btn-outline">
+                    <span id="process-btn-text">Process All Documents</span>
+                    <span id="process-loader" class="scodi-spinner" style="display: none;"></span>
+                </button>
+                <div class="search-container">
+                    <input type="text" id="document-search" class="scodi-form-control" placeholder="Search documents...">
+                </div>
+            </div>
+            
+            {% if documents %}
+            <div class="documents-table-container">
+                <table class="documents-table">
+                    <thead>
+                        <tr>
+                            <th>Filename</th>
+                            <th>Category</th>
+                            <th>Type</th>
+                            <th>Size</th>
+                            <th>Upload Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="documents-list">
+                        {% for doc in documents %}
+                        <tr class="document-item">
+                            <td class="document-filename">{{ doc.filename }}</td>
+                            <td class="document-category">{{ doc.category }}</td>
+                            <td class="document-type">{{ doc.file_type }}</td>
+                            <td class="document-size">{{ doc.size|filesizeformat }}</td>
+                            <td class="document-date">{{ doc.upload_date }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="scodi-empty-state">
+                <div class="scodi-empty-state-icon">
+                    <i class="fas fa-file-alt"></i>
+                </div>
+                <h3>No Documents Loaded</h3>
+                <p>Upload documents to start using the QA system.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- System Status -->
+    <div class="scodi-section scodi-section-alt">
+        <div class="scodi-section-title">
+            <h2>System Status</h2>
+        </div>
+        
+        <div class="scodi-card">
+            <div class="status-grid">
+                <div class="status-item">
+                    <div class="status-label">Model Type</div>
+                    <div class="status-value" id="model-type">{{ design.model_name }}</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">Documents Loaded</div>
+                    <div class="status-value" id="documents-count">{{ documents|length }}</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">System Status</div>
+                    <div class="status-value" id="system-status">
+                        <span class="status-badge status-badge-active">Active</span>
+                    </div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">Design Version</div>
+                    <div class="status-value">SCODi {{ design.design_type|capitalize }} {{ design.app_version }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Status message overlay -->
+<div id="status-message" class="status-message" style="display: none;">
+    <div class="status-message-content">
+        <span id="status-message-text"></span>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+    .documents-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+    
+    .search-container {
+        width: 300px;
+    }
+    
+    .documents-table-container {
+        overflow-x: auto;
+    }
+    
+    .documents-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .documents-table th,
+    .documents-table td {
+        padding: 10px;
+        text-align: left;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .documents-table th {
+        background-color: #f7f7f7;
+        font-weight: 600;
+    }
+    
+    .documents-table tr:hover {
+        background-color: #f5f5f5;
+    }
+    
+    .status-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 20px;
+    }
+    
+    .status-item {
+        padding: 10px;
+    }
+    
+    .status-label {
+        font-size: 14px;
+        color: var(--scodi-text-secondary);
+        margin-bottom: 5px;
+    }
+    
+    .status-value {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--scodi-text-primary);
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: 600;
+    }
+    
+    .status-badge-active {
+        background-color: var(--scodi-success);
+        color: white;
+    }
+    
+    .status-badge-inactive {
+        background-color: var(--scodi-warning);
+        color: white;
+    }
+    
+    .status-message {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1000;
+        background-color: var(--scodi-success);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 4px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: opacity 0.3s;
+    }
+    
+    .status-message.error {
+        background-color: var(--scodi-error);
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const uploadForm = document.getElementById('upload-form');
+        const btnUpload = document.getElementById('btn-upload');
+        const uploadBtnText = document.getElementById('upload-btn-text');
+        const uploadLoader = document.getElementById('upload-loader');
+        const btnProcessAll = document.getElementById('btn-process-all');
+        const processBtnText = document.getElementById('process-btn-text');
+        const processLoader = document.getElementById('process-loader');
+        const documentsCount = document.getElementById('documents-count');
+        const systemStatus = document.getElementById('system-status');
+        const documentSearch = document.getElementById('document-search');
+        const documentsList = document.getElementById('documents-list');
+        const statusMessage = document.getElementById('status-message');
+        const statusMessageText = document.getElementById('status-message-text');
+        
+        // Document Search
+        if (documentSearch && documentsList) {
+            documentSearch.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                const rows = documentsList.querySelectorAll('tr');
+                
+                rows.forEach(row => {
+                    const filename = row.querySelector('.document-filename').textContent.toLowerCase();
+                    const category = row.querySelector('.document-category').textContent.toLowerCase();
+                    
+                    if (filename.includes(searchTerm) || category.includes(searchTerm)) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            });
+        }
+        
+        // Show status message
+        function showStatusMessage(message, isError = false) {
+            statusMessageText.textContent = message;
+            statusMessage.className = isError ? 'status-message error' : 'status-message';
+            statusMessage.style.display = 'block';
+            
+            setTimeout(() => {
+                statusMessage.style.opacity = '0';
+                setTimeout(() => {
+                    statusMessage.style.display = 'none';
+                    statusMessage.style.opacity = '1';
+                }, 300);
+            }, 3000);
+        }
+        
+        // Upload Document
+        if (uploadForm) {
+            uploadForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const fileInput = document.getElementById('file-upload');
+                const categorySelect = document.getElementById('category-select');
+                
+                if (!fileInput.files.length) {
+                    showStatusMessage('Please select a file to upload', true);
+                    return;
+                }
+                
+                // Prepare form data
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                formData.append('category', categorySelect.value);
+                
+                // Show loading state
+                uploadBtnText.textContent = 'Uploading...';
+                uploadLoader.style.display = 'inline-block';
+                btnUpload.disabled = true;
+                
+                // Send request
+                fetch('/api/documents/upload', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showStatusMessage('Error: ' + data.error, true);
+                    } else {
+                        showStatusMessage('Document uploaded successfully!');
+                        
+                        // Add document to list
+                        if (documentsList) {
+                            const newRow = document.createElement('tr');
+                            newRow.className = 'document-item';
+                            
+                            const formatFileSize = size => {
+                                if (size < 1024) return size + ' B';
+                                if (size < 1024 * 1024) return (size / 1024).toFixed(1) + ' KB';
+                                return (size / (1024 * 1024)).toFixed(1) + ' MB';
+                            };
+                            
+                            newRow.innerHTML = `
+                                <td class="document-filename">${data.document.filename}</td>
+                                <td class="document-category">${data.document.category}</td>
+                                <td class="document-type">${data.document.filename.split('.').pop()}</td>
+                                <td class="document-size">${formatFileSize(data.document.size || 0)}</td>
+                                <td class="document-date">${new Date().toLocaleString()}</td>
+                            `;
+                            
+                            documentsList.appendChild(newRow);
+                            
+                            // Update counter
+                            if (documentsCount) {
+                                const currentCount = parseInt(documentsCount.textContent) || 0;
+                                documentsCount.textContent = currentCount + 1;
+                            }
+                            
+                            // Clear form
+                            uploadForm.reset();
+                        }
+                    }
+                })
+                .catch(error => {
+                    showStatusMessage('Error: ' + error.message, true);
+                })
+                .finally(() => {
+                    // Reset button state
+                    uploadBtnText.textContent = 'Upload Document';
+                    uploadLoader.style.display = 'none';
+                    btnUpload.disabled = false;
+                });
+            });
+        }
+        
+        // Process All Documents
+        if (btnProcessAll) {
+            btnProcessAll.addEventListener('click', function() {
+                // Show loading state
+                processBtnText.textContent = 'Processing...';
+                processLoader.style.display = 'inline-block';
+                btnProcessAll.disabled = true;
+                
+                // Send request
+                fetch('/api/documents/process', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        forceReprocess: true
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showStatusMessage('Error: ' + data.error, true);
+                    } else {
+                        showStatusMessage('Documents processed successfully!');
+                    }
+                })
+                .catch(error => {
+                    showStatusMessage('Error: ' + error.message, true);
+                })
+                .finally(() => {
+                    // Reset button state
+                    processBtnText.textContent = 'Process All Documents';
+                    processLoader.style.display = 'none';
+                    btnProcessAll.disabled = false;
+                });
+            });
+        }
+        
+        // Check system status
+        fetch('/api/system/status')
+            .then(response => response.json())
+            .then(data => {
+                if (systemStatus) {
+                    const statusBadge = systemStatus.querySelector('.status-badge');
+                    
+                    if (data.initialized) {
+                        statusBadge.textContent = 'Active';
+                        statusBadge.className = 'status-badge status-badge-active';
+                    } else {
+                        statusBadge.textContent = 'Inactive';
+                        statusBadge.className = 'status-badge status-badge-inactive';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error checking system status:', error);
+            });
+    });
+</script>
+{% endblock %}
