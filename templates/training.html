@@ -1,0 +1,179 @@
+{% extends "modern_layout.html" %}
+
+{% block title %}Modell-Training{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <h1>Modell-Training</h1>
+            <div class="card">
+                <div class="card-body">
+                    <h3>Neues Training starten</h3>
+                    <form id="trainingForm">
+                        <div class="form-group">
+                            <label for="baseModel">Basis-Modell:</label>
+                            <select class="form-control" id="baseModel">
+                                <option value="distilbert-base-uncased">distilbert-base-uncased (Englisch)</option>
+                                <option value="distilbert-base-multilingual-cased">distilbert-base-multilingual-cased (Mehrsprachig)</option>
+                                <option value="bert-base-german-cased">bert-base-german-cased (Deutsch)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="epochs">Anzahl der Epochs:</label>
+                            <input type="number" class="form-control" id="epochs" value="3" min="1" max="10">
+                        </div>
+                        <div class="form-group">
+                            <label for="batchSize">Batch-Größe:</label>
+                            <input type="number" class="form-control" id="batchSize" value="4" min="1" max="16">
+                        </div>
+                        <div class="form-group">
+                            <label for="learningRate">Lernrate:</label>
+                            <input type="number" class="form-control" id="learningRate" value="0.00005" step="0.00001" min="0.00001" max="0.001">
+                        </div>
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="optimize" checked>
+                            <label class="form-check-label" for="optimize">Modell nach dem Training optimieren</label>
+                        </div>
+                        <button type="button" id="startTraining" class="btn btn-primary mt-3">Training starten</button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h3>Training-Status</h3>
+                    <div id="trainingStatus">
+                        <p><strong>Status:</strong> <span id="statusMessage">{{ status.message }}</span></p>
+                        <div class="progress">
+                            <div id="progressBar" class="progress-bar" role="progressbar" style="width: {{ status.progress }}%;" aria-valuenow="{{ status.progress }}" aria-valuemin="0" aria-valuemax="100">{{ status.progress }}%</div>
+                        </div>
+                        
+                        <div id="trainingControls" class="mt-3" {% if not status.active %}style="display: none;"{% endif %}>
+                            <button id="cancelTraining" class="btn btn-danger">Training abbrechen</button>
+                        </div>
+                        
+                        <div id="downloadSection" class="mt-3" {% if not status.completed %}style="display: none;"{% endif %}>
+                            <a id="downloadModel" href="/api/training/download" class="btn btn-success">Modell herunterladen</a>
+                        </div>
+                        
+                        <div id="errorSection" class="mt-3" {% if not status.error %}style="display: none;"{% endif %}>
+                            <div class="alert alert-danger">
+                                <strong>Fehler:</strong> <span id="errorMessage">{{ status.error }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        // Training starten
+        $("#startTraining").click(function() {
+            const baseModel = $("#baseModel").val();
+            const epochs = parseInt($("#epochs").val());
+            const batchSize = parseInt($("#batchSize").val());
+            const learningRate = parseFloat($("#learningRate").val());
+            const optimize = $("#optimize").prop("checked");
+            
+            // Validierung
+            if (isNaN(epochs) || epochs < 1 || isNaN(batchSize) || batchSize < 1 || isNaN(learningRate) || learningRate <= 0) {
+                alert("Bitte geben Sie gültige Werte ein");
+                return;
+            }
+            
+            // Training starten
+            $.ajax({
+                url: "/api/training/start",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({
+                    base_model: baseModel,
+                    epochs: epochs,
+                    batch_size: batchSize,
+                    learning_rate: learningRate,
+                    optimize: optimize
+                }),
+                success: function(response) {
+                    console.log("Training gestartet", response);
+                    $("#trainingControls").show();
+                    startStatusPolling();
+                },
+                error: function(xhr) {
+                    alert("Fehler beim Starten des Trainings: " + (xhr.responseJSON ? xhr.responseJSON.message : xhr.statusText));
+                }
+            });
+        });
+        
+        // Training abbrechen
+        $("#cancelTraining").click(function() {
+            if (confirm("Möchten Sie das Training wirklich abbrechen?")) {
+                $.ajax({
+                    url: "/api/training/cancel",
+                    type: "POST",
+                    success: function(response) {
+                        console.log("Training abgebrochen", response);
+                    },
+                    error: function(xhr) {
+                        alert("Fehler beim Abbrechen des Trainings: " + xhr.statusText);
+                    }
+                });
+            }
+        });
+        
+        // Status-Polling
+        function startStatusPolling() {
+            const pollInterval = setInterval(function() {
+                $.ajax({
+                    url: "/api/training/status",
+                    type: "GET",
+                    success: function(status) {
+                        updateStatusUI(status);
+                        
+                        // Wenn Training abgeschlossen oder Fehler aufgetreten ist, Polling stoppen
+                        if (!status.active) {
+                            clearInterval(pollInterval);
+                        }
+                    },
+                    error: function(xhr) {
+                        console.error("Fehler beim Abrufen des Status:", xhr);
+                    }
+                });
+            }, 2000); // Alle 2 Sekunden aktualisieren
+        }
+        
+        // Status-UI aktualisieren
+        function updateStatusUI(status) {
+            $("#statusMessage").text(status.message);
+            $("#progressBar").css("width", status.progress + "%").attr("aria-valuenow", status.progress).text(status.progress + "%");
+            
+            if (status.active) {
+                $("#trainingControls").show();
+            } else {
+                $("#trainingControls").hide();
+            }
+            
+            if (status.completed) {
+                $("#downloadSection").show();
+            } else {
+                $("#downloadSection").hide();
+            }
+            
+            if (status.error) {
+                $("#errorSection").show();
+                $("#errorMessage").text(status.error);
+            } else {
+                $("#errorSection").hide();
+            }
+        }
+        
+        // Initial Status prüfen
+        {% if status.active %}
+        startStatusPolling();
+        {% endif %}
+    });
+</script>
+{% endblock %}
