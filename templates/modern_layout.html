@@ -14,6 +14,9 @@
     <!-- SCODi 4P Stylesheet -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/scodi-4p-modern.css') }}">
     
+    <!-- jQuery für AJAX-Anfragen -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
     <!-- Additional styles -->
     {% block styles %}{% endblock %}
     
@@ -137,7 +140,7 @@
                 </a>
             </li>
             <li>
-                <a href="{{ url_for('qa_page') }}" {% if '/qa' in request.path %}class="active"{% endif %}>
+                <a href="{{ url_for('index') }}" {% if '/qa' in request.path %}class="active"{% endif %}>
                     <i class="fas fa-question-circle"></i>
                     Question & Answer
                 </a>
@@ -146,6 +149,12 @@
                 <a href="{{ url_for('documents_page') }}" {% if '/documents' in request.path %}class="active"{% endif %}>
                     <i class="fas fa-file-alt"></i>
                     Documents
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('training.training_page') }}" {% if '/training' in request.path %}class="active"{% endif %}>
+                    <i class="fas fa-brain"></i>
+                    Modell-Training
                 </a>
             </li>
         </ul>
