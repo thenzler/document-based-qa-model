@@ -545,8 +545,8 @@ class LocalModelTrainer:
         onnx_exported = self.model_info.get("optimized", {}).get("onnx_exported", False)
         quantized = self.model_info.get("optimized", {}).get("quantized", False)
         
-        # README-Inhalt - Ersetze den variablen Namen 'answer' durch 'extracted_answer'
-        return f"""# Lokal trainiertes Dokumenten-QA-Modell
+        # README-Inhalt mit escapten geschweiften Klammern in Code-Beispielen
+        readme_template = """# Lokal trainiertes Dokumenten-QA-Modell
 
 ## Modell-Informationen
 
@@ -563,9 +563,9 @@ class LocalModelTrainer:
 
 ## Optimierungen
 
-- **Optimiert**: {'Ja' if optimized else 'Nein'}
-- **ONNX-Format**: {'Ja' if onnx_exported else 'Nein'}
-- **Quantisiert**: {'Ja' if quantized else 'Nein'}
+- **Optimiert**: {optimized}
+- **ONNX-Format**: {onnx_exported}
+- **Quantisiert**: {quantized}
 
 ## Verwendung
 
@@ -590,8 +590,8 @@ outputs = model(**inputs)
 # Antwort extrahieren
 answer_start = torch.argmax(outputs.start_logits)
 answer_end = torch.argmax(outputs.end_logits) + 1
-extracted_answer = tokenizer.decode(inputs.input_ids[0][answer_start:answer_end])
-print(f"Antwort: {extracted_answer}")
+answer = tokenizer.decode(inputs.input_ids[0][answer_start:answer_end])
+print(f"Antwort: {{answer}}")
 ```
 
 ### Für fortgeschrittene Anwendungen
@@ -608,6 +608,21 @@ Für allgemeine Fragen wird empfohlen, ein größeres, vortrainiertes Modell zu 
 
 Erstellt mit dem Document-Based QA-System
 """
+        # Format the template with real values but escape the nested format specifiers
+        formatted_readme = readme_template.format(
+            base_model=base_model,
+            model_type=model_type,
+            created_date=created_date,
+            num_docs=num_docs,
+            epochs=epochs,
+            batch_size=batch_size,
+            learning_rate=learning_rate,
+            optimized='Ja' if optimized else 'Nein',
+            onnx_exported='Ja' if onnx_exported else 'Nein',
+            quantized='Ja' if quantized else 'Nein'
+        )
+        
+        return formatted_readme
 
     def package_model(self):
         """
@@ -670,8 +685,6 @@ Erstellt mit dem Document-Based QA-System
             # Erstelle ZIP-Archiv
             zip_filename = f"local_qa_model_{base_model_short}_{version}_{date_str}.zip"
             zip_path = output_dir / zip_filename
-            
-            # Variable 'answer' wird nicht mehr benötigt, da wir 'extracted_answer' im README verwenden
             
             shutil.make_archive(
                 str(zip_path).replace(".zip", ""),
