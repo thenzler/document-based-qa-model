@@ -31,7 +31,7 @@ logger = logging.getLogger("integrated-training")
 
 # Import der original app
 try:
-    from enhanced_app_with_training import app, init_system, qa_system
+    from enhanced_app_with_training import app, init_system, qa_system, SCODI_DESIGN
 except ImportError:
     logger.error("Konnte enhanced_app_with_training.py nicht importieren.")
     logger.error("Bitte stellen Sie sicher, dass die Datei existiert und ausführbar ist.")
@@ -69,8 +69,16 @@ training_bp = Blueprint('training', __name__)
 def training_page():
     """Seite für Modelltraining anzeigen"""
     return render_template('training.html', 
+                          page_title="SCODi 4P - Modelltraining",
                           title="Modelltraining",
-                          status=training_status)
+                          status=training_status,
+                          design=SCODI_DESIGN)
+
+# Direkter Zugang zur Trainingsseite
+@app.route('/modell-training')
+def model_training_redirect():
+    """Direkter Zugang zur Trainingsseite"""
+    return redirect(url_for('training.training_page'))
 
 @training_bp.route('/api/training/start', methods=['POST'])
 def start_training():
@@ -294,12 +302,252 @@ def update_status(message=None, progress=None, error=None, completed=None, model
 
 # Hauptfunktion
 def main():
+    # Erstelle die Training-Template-Datei, falls sie nicht existiert
+    create_training_template()
+    
+    # Füge einen direkten Link zur Navigation hinzu
+    add_training_link_to_navbar()
+    
     # Blueprint registrieren
     app.register_blueprint(training_bp)
     
+    # Debug-Ausgabe der registrierten Blueprints
+    logger.info(f"Registrierte Blueprints: {list(app.blueprints.keys())}")
+    
     # App starten
     print("Starte erweiterte QA-App mit integriertem Modelltraining")
+    print("WICHTIG: Sie können die Trainingsseite direkt unter http://localhost:5000/modell-training erreichen")
     app.run(debug=True, host='0.0.0.0')
+
+def create_training_template():
+    """Erstellt die Training-Template-Datei, falls sie nicht existiert"""
+    templates_dir = Path("templates")
+    templates_dir.mkdir(exist_ok=True)
+    
+    training_template = templates_dir / "training.html"
+    
+    if not training_template.exists():
+        template_content = """{% extends "modern_layout.html" %}
+
+{% block title %}Modell-Training{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <h1>Modell-Training</h1>
+            <div class="card">
+                <div class="card-body">
+                    <h3>Neues Training starten</h3>
+                    <form id="trainingForm">
+                        <div class="form-group">
+                            <label for="baseModel">Basis-Modell:</label>
+                            <select class="form-control" id="baseModel">
+                                <option value="distilbert-base-uncased">distilbert-base-uncased (Englisch)</option>
+                                <option value="distilbert-base-multilingual-cased">distilbert-base-multilingual-cased (Mehrsprachig)</option>
+                                <option value="bert-base-german-cased">bert-base-german-cased (Deutsch)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="epochs">Anzahl der Epochs:</label>
+                            <input type="number" class="form-control" id="epochs" value="3" min="1" max="10">
+                        </div>
+                        <div class="form-group">
+                            <label for="batchSize">Batch-Größe:</label>
+                            <input type="number" class="form-control" id="batchSize" value="4" min="1" max="16">
+                        </div>
+                        <div class="form-group">
+                            <label for="learningRate">Lernrate:</label>
+                            <input type="number" class="form-control" id="learningRate" value="0.00005" step="0.00001" min="0.00001" max="0.001">
+                        </div>
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="optimize" checked>
+                            <label class="form-check-label" for="optimize">Modell nach dem Training optimieren</label>
+                        </div>
+                        <button type="button" id="startTraining" class="btn btn-primary mt-3">Training starten</button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h3>Training-Status</h3>
+                    <div id="trainingStatus">
+                        <p><strong>Status:</strong> <span id="statusMessage">{{ status.message }}</span></p>
+                        <div class="progress">
+                            <div id="progressBar" class="progress-bar" role="progressbar" style="width: {{ status.progress }}%;" aria-valuenow="{{ status.progress }}" aria-valuemin="0" aria-valuemax="100">{{ status.progress }}%</div>
+                        </div>
+                        
+                        <div id="trainingControls" class="mt-3" {% if not status.active %}style="display: none;"{% endif %}>
+                            <button id="cancelTraining" class="btn btn-danger">Training abbrechen</button>
+                        </div>
+                        
+                        <div id="downloadSection" class="mt-3" {% if not status.completed %}style="display: none;"{% endif %}>
+                            <a id="downloadModel" href="/api/training/download" class="btn btn-success">Modell herunterladen</a>
+                        </div>
+                        
+                        <div id="errorSection" class="mt-3" {% if not status.error %}style="display: none;"{% endif %}>
+                            <div class="alert alert-danger">
+                                <strong>Fehler:</strong> <span id="errorMessage">{{ status.error }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        // Training starten
+        $("#startTraining").click(function() {
+            const baseModel = $("#baseModel").val();
+            const epochs = parseInt($("#epochs").val());
+            const batchSize = parseInt($("#batchSize").val());
+            const learningRate = parseFloat($("#learningRate").val());
+            const optimize = $("#optimize").prop("checked");
+            
+            // Validierung
+            if (isNaN(epochs) || epochs < 1 || isNaN(batchSize) || batchSize < 1 || isNaN(learningRate) || learningRate <= 0) {
+                alert("Bitte geben Sie gültige Werte ein");
+                return;
+            }
+            
+            // Training starten
+            $.ajax({
+                url: "/api/training/start",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({
+                    base_model: baseModel,
+                    epochs: epochs,
+                    batch_size: batchSize,
+                    learning_rate: learningRate,
+                    optimize: optimize
+                }),
+                success: function(response) {
+                    console.log("Training gestartet", response);
+                    $("#trainingControls").show();
+                    startStatusPolling();
+                },
+                error: function(xhr) {
+                    alert("Fehler beim Starten des Trainings: " + (xhr.responseJSON ? xhr.responseJSON.message : xhr.statusText));
+                }
+            });
+        });
+        
+        // Training abbrechen
+        $("#cancelTraining").click(function() {
+            if (confirm("Möchten Sie das Training wirklich abbrechen?")) {
+                $.ajax({
+                    url: "/api/training/cancel",
+                    type: "POST",
+                    success: function(response) {
+                        console.log("Training abgebrochen", response);
+                    },
+                    error: function(xhr) {
+                        alert("Fehler beim Abbrechen des Trainings: " + xhr.statusText);
+                    }
+                });
+            }
+        });
+        
+        // Status-Polling
+        function startStatusPolling() {
+            const pollInterval = setInterval(function() {
+                $.ajax({
+                    url: "/api/training/status",
+                    type: "GET",
+                    success: function(status) {
+                        updateStatusUI(status);
+                        
+                        // Wenn Training abgeschlossen oder Fehler aufgetreten ist, Polling stoppen
+                        if (!status.active) {
+                            clearInterval(pollInterval);
+                        }
+                    },
+                    error: function(xhr) {
+                        console.error("Fehler beim Abrufen des Status:", xhr);
+                    }
+                });
+            }, 2000); // Alle 2 Sekunden aktualisieren
+        }
+        
+        // Status-UI aktualisieren
+        function updateStatusUI(status) {
+            $("#statusMessage").text(status.message);
+            $("#progressBar").css("width", status.progress + "%").attr("aria-valuenow", status.progress).text(status.progress + "%");
+            
+            if (status.active) {
+                $("#trainingControls").show();
+            } else {
+                $("#trainingControls").hide();
+            }
+            
+            if (status.completed) {
+                $("#downloadSection").show();
+            } else {
+                $("#downloadSection").hide();
+            }
+            
+            if (status.error) {
+                $("#errorSection").show();
+                $("#errorMessage").text(status.error);
+            } else {
+                $("#errorSection").hide();
+            }
+        }
+        
+        // Initial Status prüfen
+        {% if status.active %}
+        startStatusPolling();
+        {% endif %}
+    });
+</script>
+{% endblock %}"""
+        
+        with open(training_template, "w", encoding="utf-8") as f:
+            f.write(template_content)
+        
+        logger.info(f"Training-Template erstellt: {training_template}")
+
+def add_training_link_to_navbar():
+    """Fügt direkt einen Button zur Navigation hinzu"""
+    templates_dir = Path("templates")
+    unified_app_path = templates_dir / "unified_app.html"
+    
+    if unified_app_path.exists():
+        # Lese aktuelle Datei
+        with open(unified_app_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        
+        # Wenn die Navigation existiert und der Training-Link noch nicht vorhanden ist
+        if "<nav" in content and "Modell-Training" not in content:
+            # Suche nach der NavBar
+            nav_index = content.find("<nav")
+            if nav_index >= 0:
+                nav_close_index = content.find("</nav>", nav_index)
+                if nav_close_index >= 0:
+                    # Finde die letzte <li> vor dem </ul>
+                    ul_close_index = content.rfind("</ul>", nav_index, nav_close_index)
+                    if ul_close_index >= 0:
+                        # Füge einen neuen Menüpunkt für Training hinzu
+                        training_link = "\n                <li><a href=\"/modell-training\" class=\"nav-link\"><i class=\"fas fa-brain\"></i> Modell-Training</a></li>\n            "
+                        new_content = content[:ul_close_index] + training_link + content[ul_close_index:]
+                        
+                        # Backup erstellen
+                        backup_path = unified_app_path.with_suffix(".html.bak")
+                        shutil.copy2(unified_app_path, backup_path)
+                        
+                        # Schreibe aktualisierte Datei
+                        with open(unified_app_path, "w", encoding="utf-8") as f:
+                            f.write(new_content)
+                        
+                        logger.info(f"Training-Link zu {unified_app_path} hinzugefügt")
+                        return
+        
+        logger.warning(f"Konnte keinen passenden Ort für den Training-Link in {unified_app_path} finden")
 
 if __name__ == "__main__":
     main()
