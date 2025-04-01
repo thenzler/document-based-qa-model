@@ -30,8 +30,12 @@ from transformers import (
 )
 
 # Für Optimierung
-from optimum.onnxruntime import ORTModelForQuestionAnswering
-from optimum.onnxruntime.configuration import OptimizationConfig
+try:
+    from optimum.onnxruntime import ORTModelForQuestionAnswering
+    from optimum.onnxruntime.configuration import OptimizationConfig
+    OPTIMUM_AVAILABLE = True
+except ImportError:
+    OPTIMUM_AVAILABLE = False
 
 # Logging konfigurieren
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -158,6 +162,8 @@ class LocalModelTrainer:
                                 if 'text' in chunk and chunk['text'].strip():
                                     # Füge einen Absatz zwischen Chunks ein
                                     f_out.write(chunk['text'].strip() + "\n\n")
+                    except Exception as e:
+                        logger.error(f"Fehler beim Lesen der Chunk-Datei {chunk_file}: {e}")
             
             # Speichere die verwendeten Dokumentnamen
             self.model_info["documents_used"] = doc_names
@@ -441,7 +447,7 @@ class LocalModelTrainer:
             optimized_dir.mkdir(exist_ok=True)
             
             # ONNX-Export
-            if onnx_export and self.model_type == "qa":
+            if onnx_export and self.model_type == "qa" and OPTIMUM_AVAILABLE:
                 logger.info("Exportiere Modell ins ONNX-Format...")
                 
                 # Optimierungskonfiguration
@@ -466,6 +472,8 @@ class LocalModelTrainer:
                     "onnx_exported": True,
                     "optimization_date": datetime.now().isoformat()
                 }
+            elif onnx_export and not OPTIMUM_AVAILABLE:
+                logger.warning("ONNX-Export übersprungen: optimum und onnxruntime nicht verfügbar.")
                 
             # Quantisierung (hier vereinfacht)
             if quantize:
