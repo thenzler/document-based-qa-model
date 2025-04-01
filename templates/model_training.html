@@ -1,0 +1,583 @@
+{% extends "modern_layout.html" %}
+
+{% block title %}SCODi - Lokales Modell-Training{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4"><i class="fas fa-robot me-2"></i> Lokales KI-Modell-Training</h1>
+    <p class="lead">Trainieren Sie ein eigenes KI-Modell basierend auf Ihren hochgeladenen Dokumenten.</p>
+
+    <div class="row">
+        <!-- Linke Spalte: Konfiguration und Training -->
+        <div class="col-lg-7">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0"><i class="fas fa-cogs me-2"></i> Training konfigurieren</h5>
+                </div>
+                <div class="card-body">
+                    <form id="model-training-form">
+                        <div class="mb-3">
+                            <label for="base-model" class="form-label">Basis-Modell</label>
+                            <select class="form-select" id="base-model" name="base_model">
+                                <option value="distilbert-base-uncased" selected>DistilBERT (schnell, ~250MB)</option>
+                                <option value="bert-base-uncased">BERT (mittel, ~440MB)</option>
+                                <option value="roberta-base">RoBERTa (besser, ~500MB)</option>
+                                <option value="deepset/tinyroberta-squad2">TinyRoBERTa-SQuAD (optimiert für QA, ~80MB)</option>
+                                <option value="deepset/minilm-uncased-squad2">MiniLM-SQuAD (gut für QA, ~120MB)</option>
+                            </select>
+                            <div class="form-text">Kleinere Modelle sind schneller und benötigen weniger Ressourcen, größere Modelle können bessere Ergebnisse liefern.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="model-type" class="form-label">Modelltyp</label>
+                            <select class="form-select" id="model-type" name="model_type">
+                                <option value="qa" selected>Question-Answering (QA)</option>
+                                <option value="causal_lm">Kausales Sprachmodell</option>
+                                <option value="seq2seq_lm">Seq2Seq-Sprachmodell</option>
+                            </select>
+                            <div class="form-text">
+                                QA: Beste Option für Frage-Antwort-Systeme<br>
+                                Kausales LM: Gut für Text-Generierung<br>
+                                Seq2Seq LM: Gut für Übersetzung und Zusammenfassung
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label for="epochs" class="form-label">Training Epochs</label>
+                                <input type="number" class="form-control" id="epochs" name="epochs" value="3" min="1" max="20">
+                                <div class="form-text">Mehr Epochs = längeres Training</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="batch-size" class="form-label">Batch-Größe</label>
+                                <input type="number" class="form-control" id="batch-size" name="batch_size" value="4" min="1" max="32">
+                                <div class="form-text">Kleiner = weniger RAM-Bedarf</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="learning-rate" class="form-label">Lernrate</label>
+                                <input type="number" class="form-control" id="learning-rate" name="learning_rate" value="0.00005" step="0.00001" min="0.00001" max="0.001">
+                                <div class="form-text">Standard: 5e-5</div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="optimize-model" name="optimize_model" checked>
+                                <label class="form-check-label" for="optimize-model">Modell optimieren (ONNX-Export und Quantisierung)</label>
+                            </div>
+                            <div class="form-text">Optimiert die Modellgröße und Geschwindigkeit für den Einsatz.</div>
+                        </div>
+
+                        <div class="alert alert-info" role="alert">
+                            <i class="fas fa-info-circle me-2"></i> Das Training kann je nach Modellgröße und Datenmenge einige Minuten bis Stunden dauern.
+                            Stellen Sie sicher, dass Sie über ausreichend Speicherplatz verfügen.
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary" id="start-training-btn">
+                                <i class="fas fa-play me-2"></i> Training starten
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- System-Anforderungen -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="card-title mb-0"><i class="fas fa-microchip me-2"></i> System-Anforderungen</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-memory me-2"></i> Minimaler RAM</span>
+                            <span class="badge bg-primary rounded-pill">4 GB</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-memory me-2"></i> Empfohlener RAM</span>
+                            <span class="badge bg-success rounded-pill">8 GB+</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-hdd me-2"></i> Freier Speicherplatz</span>
+                            <span class="badge bg-primary rounded-pill">2 GB+</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-microchip me-2"></i> GPU</span>
+                            <span class="badge bg-warning rounded-pill">Optional</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rechte Spalte: Status und Download -->
+        <div class="col-lg-5">
+            <!-- Training Status -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="card-title mb-0"><i class="fas fa-tasks me-2"></i> Training-Status</h5>
+                </div>
+                <div class="card-body">
+                    <div id="training-status-container">
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-robot fa-3x mb-3"></i>
+                            <p>Kein Training aktiv</p>
+                            <p class="small">Konfigurieren Sie das Training und klicken Sie auf "Training starten".</p>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar (initially hidden) -->
+                    <div id="training-progress" class="progress mt-3 d-none">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Verfügbare Modelle -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="card-title mb-0"><i class="fas fa-download me-2"></i> Verfügbare Modelle</h5>
+                </div>
+                <div class="card-body">
+                    <div id="models-container">
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-box-open fa-3x mb-3"></i>
+                            <p>Keine lokal trainierten Modelle vorhanden</p>
+                            <p class="small">Nach dem Training können Sie Ihr Modell hier herunterladen.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tipps -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="card-title mb-0"><i class="fas fa-lightbulb me-2"></i> Trainings-Tipps</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item">
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            Laden Sie mindestens 5-10 Dokumente für bessere Ergebnisse hoch
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            Verwenden Sie kleinere Modelle für schnelleres Training
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            Erhöhen Sie die Epochs für bessere Ergebnisse (mehr Zeit)
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-exclamation-circle text-warning me-2"></i>
+                            Das Modell ist auf Ihre Dokumente spezialisiert und nicht für allgemeine Fragen
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Trainingsfortschritts-Modal -->
+<div class="modal fade" id="training-progress-modal" tabindex="-1" aria-labelledby="training-progress-modal-label" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="training-progress-modal-label"><i class="fas fa-cogs me-2"></i> Training läuft...</h5>
+            </div>
+            <div class="modal-body text-center py-4">
+                <div class="mb-4">
+                    <div class="progress mb-3">
+                        <div id="modal-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%"></div>
+                    </div>
+                    <p id="progress-status">Initialisiere Training...</p>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="mb-1"><i class="fas fa-clock me-1"></i> Verstrichene Zeit</h6>
+                        <p id="elapsed-time">00:00:00</p>
+                    </div>
+                    <div>
+                        <h6 class="mb-1"><i class="fas fa-sitemap me-1"></i> Basis-Modell</h6>
+                        <p id="base-model-name">-</p>
+                    </div>
+                    <div>
+                        <h6 class="mb-1"><i class="fas fa-tasks me-1"></i> Phase</h6>
+                        <p id="current-phase">Vorbereitung</p>
+                    </div>
+                </div>
+
+                <div class="alert alert-info mt-3" role="alert">
+                    <i class="fas fa-info-circle me-1"></i> Bitte schließen Sie diese Seite nicht während des Trainings
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-danger" id="cancel-training-btn">
+                    <i class="fas fa-times me-1"></i> Training abbrechen
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Variablen für das Training
+        let trainingActive = false;
+        let trainingStartTime = null;
+        let trainingTimer = null;
+        let currentModelInfo = null;
+
+        // Training-Timer aktualisieren
+        function updateTrainingTimer() {
+            if (!trainingActive || !trainingStartTime) return;
+            
+            const now = new Date();
+            const elapsedMs = now - trainingStartTime;
+            const elapsedSeconds = Math.floor(elapsedMs / 1000);
+            
+            const hours = Math.floor(elapsedSeconds / 3600);
+            const minutes = Math.floor((elapsedSeconds % 3600) / 60);
+            const seconds = elapsedSeconds % 60;
+            
+            $('#elapsed-time').text(
+                `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+            );
+        }
+
+        // Training-Formular absenden
+        $('#model-training-form').on('submit', function(e) {
+            e.preventDefault();
+            if (trainingActive) return;
+
+            // Training-Konfiguration sammeln
+            const trainingConfig = {
+                base_model: $('#base-model').val(),
+                model_type: $('#model-type').val(),
+                epochs: parseInt($('#epochs').val()),
+                batch_size: parseInt($('#batch-size').val()),
+                learning_rate: parseFloat($('#learning-rate').val()),
+                optimize: $('#optimize-model').is(':checked')
+            };
+
+            // Überprüfen, ob Dokumente vorhanden sind
+            $.ajax({
+                url: '/api/documents',
+                method: 'GET',
+                success: function(documents) {
+                    if (!documents || documents.length === 0) {
+                        showToast('Bitte laden Sie zuerst Dokumente hoch, bevor Sie ein Modell trainieren.', 'warning');
+                        return;
+                    }
+
+                    // Training starten
+                    startTraining(trainingConfig);
+                },
+                error: function() {
+                    showToast('Fehler beim Überprüfen der Dokumente. Bitte versuchen Sie es später erneut.', 'error');
+                }
+            });
+        });
+
+        // Training starten
+        function startTraining(config) {
+            // Training-Status aktualisieren
+            trainingActive = true;
+            trainingStartTime = new Date();
+
+            // UI aktualisieren
+            updateTrainingStatusUI('Vorbereitung des Trainings...', 0);
+            $('#start-training-btn').prop('disabled', true);
+            $('#base-model-name').text($('#base-model option:selected').text().split('(')[0].trim());
+            
+            // Modal anzeigen
+            $('#training-progress-modal').modal('show');
+            
+            // Timer starten
+            trainingTimer = setInterval(updateTrainingTimer, 1000);
+
+            // Training-API aufrufen
+            $.ajax({
+                url: '/api/model/train',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(config),
+                success: function(response) {
+                    if (response.success) {
+                        pollTrainingStatus();
+                    } else {
+                        trainingFailed(response.error || 'Unbekannter Fehler beim Starten des Trainings.');
+                    }
+                },
+                error: function(xhr) {
+                    const errorMessage = xhr.responseJSON?.error || 'Fehler beim Starten des Trainings.';
+                    trainingFailed(errorMessage);
+                }
+            });
+        }
+
+        // Training-Status regelmäßig abfragen
+        function pollTrainingStatus() {
+            if (!trainingActive) return;
+
+            $.ajax({
+                url: '/api/model/status',
+                method: 'GET',
+                success: function(status) {
+                    if (!trainingActive) return;
+
+                    if (status.active) {
+                        // Status aktualisieren
+                        updateTrainingStatusUI(status.message, status.progress);
+                        $('#current-phase').text(status.phase || 'Training');
+                        
+                        // Weitere Abfrage in 2 Sekunden
+                        setTimeout(pollTrainingStatus, 2000);
+                    } else if (status.completed) {
+                        // Training erfolgreich abgeschlossen
+                        trainingSucceeded(status);
+                    } else if (status.error) {
+                        // Fehler beim Training
+                        trainingFailed(status.error);
+                    } else {
+                        // Unbekannter Status, weitere Abfrage
+                        setTimeout(pollTrainingStatus, 2000);
+                    }
+                },
+                error: function() {
+                    // Bei Fehlern weiter abfragen
+                    setTimeout(pollTrainingStatus, 5000);
+                }
+            });
+        }
+
+        // Training-Status-UI aktualisieren
+        function updateTrainingStatusUI(message, progress) {
+            // Fortschrittsbalken aktualisieren
+            const progressPercent = Math.min(Math.max(progress, 0), 100);
+            $('#modal-progress-bar').css('width', `${progressPercent}%`).attr('aria-valuenow', progressPercent);
+            $('.progress-bar').css('width', `${progressPercent}%`).attr('aria-valuenow', progressPercent);
+            
+            // Statusmeldung aktualisieren
+            $('#progress-status').text(message);
+            
+            // Fortschrittsbalken anzeigen
+            $('#training-progress').removeClass('d-none');
+            
+            // Status-Container aktualisieren
+            $('#training-status-container').html(`
+                <div class="alert alert-info mb-3">
+                    <i class="fas fa-sync-alt fa-spin me-2"></i> <strong>Training läuft:</strong> ${message}
+                </div>
+                <div class="d-flex justify-content-between text-muted small">
+                    <div>Modell: ${$('#base-model option:selected').text().split('(')[0].trim()}</div>
+                    <div>Typ: ${$('#model-type option:selected').text().split('(')[0].trim()}</div>
+                </div>
+            `);
+        }
+
+        // Training erfolgreich abgeschlossen
+        function trainingSucceeded(status) {
+            trainingActive = false;
+            clearInterval(trainingTimer);
+            
+            // UI aktualisieren
+            $('#modal-progress-bar').css('width', '100%').attr('aria-valuenow', 100);
+            $('#progress-status').text('Training erfolgreich abgeschlossen!');
+            $('#current-phase').text('Abgeschlossen');
+            
+            // Modal nach kurzer Verzögerung ausblenden
+            setTimeout(function() {
+                $('#training-progress-modal').modal('hide');
+                
+                // Erfolgsmeldung anzeigen
+                showToast('Modell-Training erfolgreich abgeschlossen!', 'success');
+                
+                // UI zurücksetzen
+                $('#start-training-btn').prop('disabled', false);
+                
+                // Status-Container aktualisieren
+                $('#training-status-container').html(`
+                    <div class="alert alert-success mb-3">
+                        <i class="fas fa-check-circle me-2"></i> <strong>Training abgeschlossen</strong>
+                    </div>
+                    <div class="text-muted">
+                        <p class="mb-1"><strong>Modell:</strong> ${status.model_info?.base_model_name || '-'}</p>
+                        <p class="mb-1"><strong>Trainingszeit:</strong> ${formatDuration(status.model_info?.training_duration_seconds || 0)}</p>
+                        <p class="mb-0"><strong>Dokumente:</strong> ${(status.model_info?.documents_used || []).length} verwendet</p>
+                    </div>
+                `);
+                
+                // Verfügbare Modelle aktualisieren
+                loadAvailableModels();
+            }, 1500);
+        }
+
+        // Training fehlgeschlagen
+        function trainingFailed(errorMessage) {
+            trainingActive = false;
+            clearInterval(trainingTimer);
+            
+            // UI aktualisieren
+            $('#progress-status').text('Training fehlgeschlagen');
+            $('#current-phase').text('Fehler');
+            
+            // Modal nach kurzer Verzögerung ausblenden
+            setTimeout(function() {
+                $('#training-progress-modal').modal('hide');
+                
+                // Fehlermeldung anzeigen
+                showToast(`Training fehlgeschlagen: ${errorMessage}`, 'error');
+                
+                // UI zurücksetzen
+                $('#start-training-btn').prop('disabled', false);
+                
+                // Status-Container aktualisieren
+                $('#training-status-container').html(`
+                    <div class="alert alert-danger mb-3">
+                        <i class="fas fa-exclamation-circle me-2"></i> <strong>Training fehlgeschlagen</strong>
+                    </div>
+                    <div class="text-muted">
+                        <p>${errorMessage}</p>
+                        <p class="mb-0">Bitte überprüfen Sie die Logs für weitere Details.</p>
+                    </div>
+                `);
+            }, 1500);
+        }
+
+        // Training abbrechen
+        $('#cancel-training-btn').on('click', function() {
+            if (!trainingActive) return;
+            
+            if (confirm('Sind Sie sicher, dass Sie das Training abbrechen möchten? Alle Fortschritte gehen verloren.')) {
+                $.ajax({
+                    url: '/api/model/cancel',
+                    method: 'POST',
+                    success: function() {
+                        trainingActive = false;
+                        clearInterval(trainingTimer);
+                        
+                        // Modal ausblenden
+                        $('#training-progress-modal').modal('hide');
+                        
+                        // Meldung anzeigen
+                        showToast('Training abgebrochen.', 'info');
+                        
+                        // UI zurücksetzen
+                        $('#start-training-btn').prop('disabled', false);
+                        
+                        // Status-Container aktualisieren
+                        $('#training-status-container').html(`
+                            <div class="alert alert-warning mb-3">
+                                <i class="fas fa-exclamation-triangle me-2"></i> <strong>Training abgebrochen</strong>
+                            </div>
+                            <div class="text-muted">
+                                <p class="mb-0">Das Training wurde manuell abgebrochen.</p>
+                            </div>
+                        `);
+                    },
+                    error: function() {
+                        showToast('Fehler beim Abbrechen des Trainings.', 'error');
+                    }
+                });
+            }
+        });
+
+        // Verfügbare Modelle laden
+        function loadAvailableModels() {
+            $.ajax({
+                url: '/api/model/list',
+                method: 'GET',
+                success: function(models) {
+                    if (models && models.length > 0) {
+                        // Modelle anzeigen
+                        const modelsHtml = models.map(model => `
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h5 class="card-title">${model.name || 'Lokales Modell'}</h5>
+                                    <p class="card-text small text-muted">
+                                        ${model.description || `Basis: ${model.base_model_name || '-'}`}<br>
+                                        Erstellt: ${formatDate(model.created_date) || '-'}
+                                    </p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="badge bg-info">${formatSize(model.size || 0)}</span>
+                                        <a href="/api/model/download/${model.id}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-download me-1"></i> Herunterladen
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('');
+                        
+                        $('#models-container').html(modelsHtml);
+                    } else {
+                        // Keine Modelle vorhanden
+                        $('#models-container').html(`
+                            <div class="text-center text-muted py-4">
+                                <i class="fas fa-box-open fa-3x mb-3"></i>
+                                <p>Keine lokal trainierten Modelle vorhanden</p>
+                                <p class="small">Nach dem Training können Sie Ihr Modell hier herunterladen.</p>
+                            </div>
+                        `);
+                    }
+                },
+                error: function() {
+                    $('#models-container').html(`
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle me-2"></i> Fehler beim Laden der verfügbaren Modelle
+                        </div>
+                    `);
+                }
+            });
+        }
+
+        // Hilfsfunktionen
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+            } catch (e) {
+                return dateString;
+            }
+        }
+
+        function formatDuration(seconds) {
+            if (!seconds) return '-';
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            
+            let result = '';
+            if (hours > 0) result += `${hours}h `;
+            if (minutes > 0 || hours > 0) result += `${minutes}m `;
+            result += `${secs}s`;
+            
+            return result;
+        }
+
+        function formatSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function showToast(message, type = 'info') {
+            // Toast-Anzeige (muss in der Hauptdatei definiert sein)
+            if (typeof window.showToast === 'function') {
+                window.showToast(message, type);
+            } else {
+                alert(message);
+            }
+        }
+
+        // Initial verfügbare Modelle laden
+        loadAvailableModels();
+    });
+</script>
+{% endblock %}
