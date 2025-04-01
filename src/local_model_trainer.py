@@ -11,6 +11,7 @@ import json
 import torch
 import logging
 import numpy as np
+import re
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple
@@ -473,7 +474,7 @@ class LocalModelTrainer:
                     "optimization_date": datetime.now().isoformat()
                 }
             elif onnx_export and not OPTIMUM_AVAILABLE:
-                logger.warning("ONNX-Export übersprungen: optimum und onnxruntime nicht verfügbar.")
+                logger.warning("ONNX-Export übersprungen, da optimum nicht verfügbar ist.")
                 
             # Quantisierung (hier vereinfacht)
             if quantize:
@@ -483,25 +484,28 @@ class LocalModelTrainer:
                 # Das hängt vom Modelltyp und der verwendeten Bibliothek ab
                 
                 # Beispiel für eine einfache 8-bit Quantisierung mit PyTorch
-                quantized_model = torch.quantization.quantize_dynamic(
-                    self.model,
-                    {torch.nn.Linear},  # Quantisiere nur Linear-Layer
-                    dtype=torch.qint8
-                )
-                
-                # Speichere quantisiertes Modell
-                torch.save(
-                    quantized_model.state_dict(), 
-                    optimized_dir / "quantized_model.pt"
-                )
-                
-                # Aktualisiere Modell-Info
-                self.model_info.setdefault("optimized", {}).update({
-                    "quantized": True,
-                    "quantization_date": datetime.now().isoformat()
-                })
-                
-                logger.info(f"Quantisiertes Modell gespeichert in: {optimized_dir}")
+                try:
+                    quantized_model = torch.quantization.quantize_dynamic(
+                        self.model,
+                        {torch.nn.Linear},  # Quantisiere nur Linear-Layer
+                        dtype=torch.qint8
+                    )
+                    
+                    # Speichere quantisiertes Modell
+                    torch.save(
+                        quantized_model.state_dict(), 
+                        optimized_dir / "quantized_model.pt"
+                    )
+                    
+                    # Aktualisiere Modell-Info
+                    self.model_info.setdefault("optimized", {}).update({
+                        "quantized": True,
+                        "quantization_date": datetime.now().isoformat()
+                    })
+                    
+                    logger.info(f"Quantisiertes Modell gespeichert in: {optimized_dir}")
+                except Exception as e:
+                    logger.warning(f"Quantisierung übersprungen aufgrund von Fehler: {e}")
             
             # Speichere aktualisierte Modell-Info
             model_info_file = self.output_dir / "model_info.json"
