@@ -12,6 +12,11 @@ import json
 from datetime import datetime
 from pathlib import Path
 from werkzeug.utils import secure_filename
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger("ModernApp")
 
 # Add src directory to path
 sys.path.append('./src')
@@ -24,25 +29,26 @@ try:
     # Try to import the RAG QA system first
     try:
         from src.qa_system_rag import DocumentQA
-        print("RAG-based QA System successfully loaded")
+        logger.info("RAG-based QA System successfully loaded")
         using_rag = True
+        using_llm = True
     except ImportError as e:
-        print(f"RAG-based QA System could not be loaded: {e}")
-        print("Using standard QA System without RAG")
+        logger.warning(f"RAG-based QA System could not be loaded: {e}")
+        logger.info("Using standard QA System without RAG")
         try:
             from src.qa_system_llm import DocumentQA
-            print("LLM-based QA System loaded")
+            logger.info("LLM-based QA System loaded")
             using_rag = False
             using_llm = True
         except ImportError as e:
-            print(f"LLM-based QA System could not be loaded: {e}")
-            print("Using basic QA System")
+            logger.warning(f"LLM-based QA System could not be loaded: {e}")
+            logger.info("Using basic QA System")
             from src.qa_system import DocumentQA
             using_rag = False
             using_llm = False
 except ImportError as e:
-    print(f"Import error: {e}")
-    print("Make sure the src directory exists and contains the required modules.")
+    logger.error(f"Import error: {e}")
+    logger.error("Make sure the src directory exists and contains the required modules.")
     sys.exit(1)
 
 app = Flask(__name__)
@@ -72,8 +78,9 @@ SCODI_DESIGN = {
     "design_type": "modern",
     # Model info
     "using_rag": using_rag,
+    "using_llm": using_llm,
     "model_name": "RAG QA System" if using_rag else 
-                 "LLM QA System" if 'using_llm' in locals() and using_llm else
+                 "LLM QA System" if using_llm else
                  "Basic QA System"
 }
 
@@ -96,24 +103,24 @@ def init_system():
         try:
             if 'using_rag' in globals() and using_rag:
                 qa_system = DocumentQA(use_gpu=use_gpu)
-                print("RAG-based QA System initialized")
+                logger.info("RAG-based QA System initialized")
             elif 'using_llm' in globals() and using_llm:
                 qa_system = DocumentQA(use_gpu=use_gpu)
-                print("LLM-based QA System initialized")
+                logger.info("LLM-based QA System initialized")
             else:
                 qa_system = DocumentQA()
-                print("Basic QA System initialized")
+                logger.info("Basic QA System initialized")
                 
             # Process documents
             docs_dir = app.config['DOCS_FOLDER']
             if docs_dir.exists():
                 qa_system.process_documents(str(docs_dir))
         except Exception as e:
-            print(f"Error initializing QA system: {e}")
+            logger.error(f"Error initializing QA system: {e}")
             # Create a basic DocumentQA instance as fallback
             from src.qa_system import DocumentQA as BasicDocumentQA
             qa_system = BasicDocumentQA()
-            print("Fallback to basic QA System")
+            logger.info("Fallback to basic QA System")
     
     if doc_processor is None:
         doc_processor = DocumentProcessor()
@@ -171,7 +178,7 @@ def ask_question():
             "sources": sources
         })
     except Exception as e:
-        print(f"Error answering question: {str(e)}")
+        logger.error(f"Error answering question: {str(e)}")
         return jsonify({"error": f"Error answering question: {str(e)}"}), 500
 
 @app.route('/api/documents', methods=['GET'])
@@ -304,7 +311,7 @@ def answer_question():
             "using_rag": SCODI_DESIGN["using_rag"]
         })
     except Exception as e:
-        print(f"Error in answer_question: {str(e)}")
+        logger.error(f"Error in answer_question: {str(e)}")
         return jsonify({"error": f"Error answering question: {str(e)}"}), 500
 
 @app.route('/api/init', methods=['POST'])
@@ -325,6 +332,7 @@ def system_status():
     """Returns the current system status"""
     return jsonify({
         "using_rag": SCODI_DESIGN["using_rag"],
+        "using_llm": SCODI_DESIGN["using_llm"],
         "model_name": SCODI_DESIGN["model_name"],
         "documents_loaded": len(qa_system.documents) if qa_system else 0,
         "initialized": qa_system is not None,
@@ -337,6 +345,6 @@ if __name__ == '__main__':
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     os.makedirs(app.config['DOCS_FOLDER'], exist_ok=True)
     
-    print(f"SCODi 4P Document QA System started with {SCODI_DESIGN['design_type']} design")
-    print(f"Model: {SCODI_DESIGN['model_name']}")
+    logger.info(f"SCODi 4P Document QA System started with {SCODI_DESIGN['design_type']} design")
+    logger.info(f"Model: {SCODI_DESIGN['model_name']}")
     app.run(debug=True)
