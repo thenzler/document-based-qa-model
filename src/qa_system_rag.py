@@ -15,20 +15,48 @@ from pathlib import Path
 import torch
 from tqdm import tqdm
 from typing import List, Dict, Any, Tuple, Optional
+import logging
+
+# Initialize logger
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger("RAG-QA")
 
 # Sentence transformers for embeddings
-from sentence_transformers import SentenceTransformer, CrossEncoder
+try:
+    from sentence_transformers import SentenceTransformer, CrossEncoder
+    SENTENCE_TRANSFORMERS_AVAILABLE = True
+except ImportError:
+    logger.warning("SentenceTransformers not available. Basic retrieval will be used.")
+    SENTENCE_TRANSFORMERS_AVAILABLE = False
 
 # FAISS for efficient vector search
-import faiss
+try:
+    import faiss
+    FAISS_AVAILABLE = True
+except ImportError:
+    logger.warning("FAISS not available. Basic retrieval will be used.")
+    FAISS_AVAILABLE = False
 
 # Transformers for local model support
-from transformers import (
-    AutoTokenizer, 
-    AutoModelForQuestionAnswering, 
-    AutoModelForSeq2SeqLM,
-    pipeline
-)
+try:
+    from transformers import (
+        AutoTokenizer, 
+        AutoModelForQuestionAnswering, 
+        AutoModelForSeq2SeqLM,
+        pipeline
+    )
+    TRANSFORMERS_AVAILABLE = True
+except ImportError:
+    logger.warning("Transformers not available. Basic retrieval will be used.")
+    TRANSFORMERS_AVAILABLE = False
+
+# Import embedding models
+try:
+    from src.model_embeddings import EmbeddingModel, CrossEncoderModel
+    EMBEDDING_MODELS_AVAILABLE = True
+except ImportError:
+    logger.warning("Embedding models not available. Using built-in embeddings.")
+    EMBEDDING_MODELS_AVAILABLE = False
 
 class DocumentQA:
     """
@@ -40,7 +68,7 @@ class DocumentQA:
         self, 
         embedding_model_name="sentence-transformers/all-mpnet-base-v2", 
         cross_encoder_model_name="cross-encoder/ms-marco-MiniLM-L-6-v2",
-        generation_model_name="deepset/minilm-uncased-squad2",
+        generation_model_name="deepset/roberta-base-squad2",
         use_gpu=False
     ):
         """
@@ -58,34 +86,59 @@ class DocumentQA:
         self.faiss_index = None
         self.use_gpu = use_gpu and torch.cuda.is_available()
         
+        # Model initialization flags
+        self.using_external_embedding_model = EMBEDDING_MODELS_AVAILABLE
+        self.using_sentence_transformers = SENTENCE_TRANSFORMERS_AVAILABLE and not EMBEDDING_MODELS_AVAILABLE
+        self.using_transformers = TRANSFORMERS_AVAILABLE
+        self.using_faiss = FAISS_AVAILABLE
+        
         # Initialize models
         try:
-            print(f"Loading embedding model: {embedding_model_name}")
-            self.embedding_model = SentenceTransformer(embedding_model_name)
-            if self.use_gpu:
-                self.embedding_model = self.embedding_model.to(torch.device("cuda"))
+            # Use external embedding models if available
+            if self.using_external_embedding_model:
+                logger.info("Using external embedding models")
+                self.embedding_model = EmbeddingModel(embedding_model_name, use_gpu=use_gpu)
+                self.cross_encoder = CrossEncoderModel(cross_encoder_model_name, use_gpu=use_gpu)
+            # Otherwise use sentence transformers directly
+            elif self.using_sentence_transformers:
+                logger.info(f"Loading embedding model: {embedding_model_name}")
+                self.embedding_model = SentenceTransformer(embedding_model_name)
+                if self.use_gpu:
+                    self.embedding_model = self.embedding_model.to(torch.device("cuda"))
+                
+                logger.info(f"Loading cross-encoder model: {cross_encoder_model_name}")
+                self.cross_encoder = CrossEncoder(cross_encoder_model_name)
+            else:
+                logger.warning("No embedding models available. Using basic retrieval.")
+                self.embedding_model = None
+                self.cross_encoder = None
             
-            print(f"Loading cross-encoder model: {cross_encoder_model_name}")
-            self.cross_encoder = CrossEncoder(cross_encoder_model_name)
+            # Load QA model if transformers is available
+            if self.using_transformers:
+                logger.info(f"Loading generation model: {generation_model_name}")
+                self.tokenizer = AutoTokenizer.from_pretrained(generation_model_name)
+                self.qa_model = AutoModelForQuestionAnswering.from_pretrained(generation_model_name)
+                
+                if self.use_gpu:
+                    self.qa_model = self.qa_model.to(torch.device("cuda"))
+                
+                self.qa_pipeline = pipeline(
+                    "question-answering",
+                    model=self.qa_model,
+                    tokenizer=self.tokenizer,
+                    device=0 if self.use_gpu else -1
+                )
+            else:
+                logger.warning("Transformers not available. Using extractive answers only.")
+                self.tokenizer = None
+                self.qa_model = None
+                self.qa_pipeline = None
             
-            print(f"Loading generation model: {generation_model_name}")
-            self.tokenizer = AutoTokenizer.from_pretrained(generation_model_name)
-            self.qa_model = AutoModelForQuestionAnswering.from_pretrained(generation_model_name)
+            logger.info("Models successfully loaded")
             
-            if self.use_gpu:
-                self.qa_model = self.qa_model.to(torch.device("cuda"))
-            
-            self.qa_pipeline = pipeline(
-                "question-answering",
-                model=self.qa_model,
-                tokenizer=self.tokenizer,
-                device=0 if self.use_gpu else -1
-            )
-            
-            print("Models successfully loaded")
         except Exception as e:
-            print(f"Error loading models: {e}")
-            print("Falling back to simpler methods if models could not be loaded")
+            logger.error(f"Error loading models: {e}")
+            logger.info("Falling back to simpler methods if models could not be loaded")
             self.embedding_model = None
             self.cross_encoder = None
             self.qa_model = None
@@ -102,7 +155,7 @@ class DocumentQA:
         docs_path = Path(docs_dir)
         
         if not docs_path.exists():
-            print(f"Warning: Directory not found: {docs_dir}")
+            logger.warning(f"Directory not found: {docs_dir}")
             return
         
         # Load all documents and chunks
@@ -118,8 +171,8 @@ class DocumentQA:
             try:
                 self._load_processed_data(metadata_dir, chunks_dir)
             except Exception as e:
-                print(f"Error loading processed data: {e}")
-                print("Processing documents again...")
+                logger.error(f"Error loading processed data: {e}")
+                logger.info("Processing documents again...")
                 self._process_raw_documents(docs_path)
         else:
             # Create .metadata and .chunks directories if they don't exist
@@ -130,10 +183,18 @@ class DocumentQA:
             self._process_raw_documents(docs_path)
             
         # Create embeddings and index for semantic search
-        if self.embedding_model is not None:
+        if self._can_use_embeddings():
             self._create_embeddings_index()
         
-        print(f"Loaded: {len(self.documents)} documents, {len(self.chunks)} chunks")
+        logger.info(f"Loaded: {len(self.documents)} documents, {len(self.chunks)} chunks")
+    
+    def _can_use_embeddings(self):
+        """Check if embeddings can be used"""
+        if self.using_external_embedding_model:
+            return True
+        elif self.using_sentence_transformers and self.embedding_model is not None:
+            return True
+        return False
     
     def _load_processed_data(self, metadata_dir, chunks_dir):
         """Load already processed documents and chunks"""
@@ -144,7 +205,7 @@ class DocumentQA:
                     metadata = json.load(f)
                     self.documents.append(metadata)
             except Exception as e:
-                print(f"Error loading metadata {metadata_file}: {e}")
+                logger.error(f"Error loading metadata {metadata_file}: {e}")
         
         # Load chunks
         for chunks_file in chunks_dir.glob('*.chunks.json'):
@@ -163,7 +224,7 @@ class DocumentQA:
                             }
                         self.chunks.append(chunk)
             except Exception as e:
-                print(f"Error loading chunks {chunks_file}: {e}")
+                logger.error(f"Error loading chunks {chunks_file}: {e}")
     
     def _process_raw_documents(self, docs_path):
         """Process raw documents and create chunks"""
@@ -171,14 +232,14 @@ class DocumentQA:
         for file_path in docs_path.glob('*.*'):
             if file_path.suffix.lower() in ['.txt', '.md', '.pdf', '.docx', '.html']:
                 try:
-                    print(f"Processing document: {file_path.name}")
+                    logger.info(f"Processing document: {file_path.name}")
                     document_meta = self._process_document(file_path)
                     
                     if document_meta:
                         self.documents.append(document_meta)
                     
                 except Exception as e:
-                    print(f"Error processing {file_path.name}: {e}")
+                    logger.error(f"Error processing {file_path.name}: {e}")
     
     def _process_document(self, file_path):
         """
@@ -191,14 +252,14 @@ class DocumentQA:
             dict: Document metadata
         """
         if not file_path.exists():
-            print(f"File not found: {file_path}")
+            logger.warning(f"File not found: {file_path}")
             return None
             
         # Read document content
         content = self._read_document_content(file_path)
         
         if not content:
-            print(f"No content found in {file_path.name} or unsupported format")
+            logger.warning(f"No content found in {file_path.name} or unsupported format")
             return None
             
         # Create document metadata
@@ -256,17 +317,17 @@ class DocumentQA:
                     return re.sub(r'<[^>]+>', ' ', html_content)
                     
             elif suffix == '.pdf':
-                print("PDF extraction requires pdfplumber or PyPDF2, not supported in this version")
+                logger.info("PDF extraction requires pdfplumber or PyPDF2, not supported in this version")
                 return f"[PDF content from {file_path.name}]"
                 
             elif suffix == '.docx':
-                print("DOCX extraction requires python-docx, not supported in this version")
+                logger.info("DOCX extraction requires python-docx, not supported in this version")
                 return f"[DOCX content from {file_path.name}]"
             
             return None
             
         except Exception as e:
-            print(f"Error reading {file_path.name}: {e}")
+            logger.error(f"Error reading {file_path.name}: {e}")
             return None
     
     def _create_semantic_chunks(self, text, chunk_size=1000, overlap=200):
@@ -364,32 +425,36 @@ class DocumentQA:
     
     def _create_embeddings_index(self):
         """Create embeddings for all chunks and a FAISS index for fast search"""
-        # Check if model is loaded
-        if self.embedding_model is None:
-            print("Embedding model not available, skipping indexing")
+        # Check if embeddings can be used
+        if not self._can_use_embeddings():
+            logger.warning("Embedding capabilities not available, skipping indexing")
             return
             
-        print("Creating embeddings for all chunks...")
+        logger.info("Creating embeddings for all chunks...")
         
         # Extract texts from chunks
         texts = [chunk.get('text', '') for chunk in self.chunks]
         
         if not texts:
-            print("No texts found to embed")
+            logger.warning("No texts found to embed")
             return
             
         # Create embeddings for all texts
         try:
-            self.chunk_embeddings = self.embedding_model.encode(texts, show_progress_bar=True)
+            if self.using_external_embedding_model:
+                self.chunk_embeddings = self.embedding_model.get_embeddings(texts)
+            else:
+                self.chunk_embeddings = self.embedding_model.encode(texts, show_progress_bar=True)
             
             # Create FAISS index for fast nearest-neighbor search
-            embedding_dim = self.chunk_embeddings.shape[1]
-            self.faiss_index = faiss.IndexFlatL2(embedding_dim)
-            self.faiss_index.add(self.chunk_embeddings)
-            
-            print(f"Embeddings index created with {len(texts)} chunks")
+            if self.using_faiss:
+                embedding_dim = self.chunk_embeddings.shape[1]
+                self.faiss_index = faiss.IndexFlatL2(embedding_dim)
+                self.faiss_index.add(self.chunk_embeddings)
+                
+            logger.info(f"Embeddings index created with {len(texts)} chunks")
         except Exception as e:
-            print(f"Error creating embeddings index: {e}")
+            logger.error(f"Error creating embeddings index: {e}")
             self.chunk_embeddings = None
             self.faiss_index = None
 
@@ -403,7 +468,7 @@ class DocumentQA:
         file_path = Path(file_path)
         
         if not file_path.exists():
-            print(f"File not found: {file_path}")
+            logger.warning(f"File not found: {file_path}")
             return
         
         try:
@@ -411,23 +476,28 @@ class DocumentQA:
             document_meta = self._process_document(file_path)
             
             if not document_meta:
-                print(f"Document could not be processed: {file_path}")
+                logger.warning(f"Document could not be processed: {file_path}")
                 return
                 
             # Add to document list
             self.documents.append(document_meta)
             
             # Update embeddings and index
-            if self.embedding_model is not None and self.chunk_embeddings is not None and self.faiss_index is not None:
+            if self._can_use_embeddings() and self.chunk_embeddings is not None:
                 # Get only the newly added chunks
                 new_chunks = [c for c in self.chunks if c.get('document', {}).get('filename', '') == file_path.name]
                 
                 if new_chunks:
                     new_texts = [chunk.get('text', '') for chunk in new_chunks]
-                    new_embeddings = self.embedding_model.encode(new_texts, show_progress_bar=True)
+                    
+                    if self.using_external_embedding_model:
+                        new_embeddings = self.embedding_model.get_embeddings(new_texts)
+                    else:
+                        new_embeddings = self.embedding_model.encode(new_texts, show_progress_bar=True)
                     
                     # Add new embeddings to index
-                    self.faiss_index.add(new_embeddings)
+                    if self.using_faiss and self.faiss_index is not None:
+                        self.faiss_index.add(new_embeddings)
                     
                     # Update the embeddings array
                     if self.chunk_embeddings is not None:
@@ -435,9 +505,9 @@ class DocumentQA:
                     else:
                         self.chunk_embeddings = new_embeddings
             
-            print(f"Document successfully added and indexed: {file_path}")
+            logger.info(f"Document successfully added and indexed: {file_path}")
         except Exception as e:
-            print(f"Error adding document {file_path}: {e}")
+            logger.error(f"Error adding document {file_path}: {e}")
     
     def answer_question(self, question, use_generation=True, top_k=5):
         """
@@ -481,7 +551,8 @@ class DocumentQA:
                    "Please try a different question or upload more relevant documents."), []
         
         # If cross-encoder is available, rerank chunks
-        if self.cross_encoder is not None:
+        if (self.using_external_embedding_model and self.cross_encoder) or \
+           (self.using_sentence_transformers and self.cross_encoder is not None):
             relevant_chunks = self._rerank_chunks(question, relevant_chunks)
         
         # Generate answer using the most relevant chunks
@@ -546,26 +617,50 @@ class DocumentQA:
         relevant_chunks = []
         
         # If semantic search is available (with embeddings)
-        if self.embedding_model is not None and self.chunk_embeddings is not None and self.faiss_index is not None:
+        if self._can_use_embeddings() and self.chunk_embeddings is not None:
             try:
                 # Create embedding for the question
-                question_embedding = self.embedding_model.encode([question])
+                if self.using_external_embedding_model:
+                    question_embedding = self.embedding_model.get_embeddings([question])
+                else:
+                    question_embedding = self.embedding_model.encode([question])
                 
-                # Search for nearest neighbors
-                distances, indices = self.faiss_index.search(question_embedding, min(top_k, len(self.chunks)))
-                
-                # Convert indices to chunks and add distances
-                for i, idx in enumerate(indices[0]):
-                    if idx < len(self.chunks):
-                        chunk = self.chunks[idx].copy()
-                        # Lower distance = higher relevance
-                        relevance_score = 1.0 / (1.0 + distances[0][i])
-                        chunk['relevance_score'] = min(relevance_score, 0.95)  # Cap at 0.95
+                # Search for nearest neighbors with FAISS
+                if self.using_faiss and self.faiss_index is not None:
+                    distances, indices = self.faiss_index.search(question_embedding, min(top_k, len(self.chunks)))
+                    
+                    # Convert indices to chunks and add distances
+                    for i, idx in enumerate(indices[0]):
+                        if idx < len(self.chunks):
+                            chunk = self.chunks[idx].copy()
+                            # Lower distance = higher relevance
+                            relevance_score = 1.0 / (1.0 + distances[0][i])
+                            chunk['relevance_score'] = min(relevance_score, 0.95)  # Cap at 0.95
+                            relevant_chunks.append(chunk)
+                    
+                    return relevant_chunks
+                # Use manual nearest neighbor search if FAISS not available
+                elif self.chunk_embeddings is not None:
+                    # Compute distances to all chunks
+                    distances = []
+                    for i, chunk_embedding in enumerate(self.chunk_embeddings):
+                        # Simple Euclidean distance
+                        dist = np.sum((question_embedding[0] - chunk_embedding) ** 2)
+                        distances.append((i, dist))
+                    
+                    # Sort by distance (ascending)
+                    distances.sort(key=lambda x: x[1])
+                    
+                    # Take top_k
+                    for i, dist in distances[:top_k]:
+                        chunk = self.chunks[i].copy()
+                        relevance_score = 1.0 / (1.0 + dist)
+                        chunk['relevance_score'] = min(relevance_score, 0.95)
                         relevant_chunks.append(chunk)
-                
-                return relevant_chunks
+                    
+                    return relevant_chunks
             except Exception as e:
-                print(f"Error in semantic search: {e}")
+                logger.error(f"Error in semantic search: {e}")
                 # Fall back to keyword search
         
         # Fallback: Simple keyword-based search
@@ -607,34 +702,62 @@ class DocumentQA:
         Returns:
             list: Reranked chunks
         """
-        if not self.cross_encoder or not chunks:
-            return chunks
+        if not chunks:
+            return []
             
         try:
             # Prepare chunk pairs for reranking
             chunk_texts = [chunk.get('text', '')[:512] for chunk in chunks]  # Truncate to avoid too long sequences
-            chunk_pairs = [[question, text] for text in chunk_texts]
             
-            # Score chunks
-            scores = self.cross_encoder.predict(chunk_pairs)
-            
-            # Create list of (chunk, score) pairs
-            chunk_score_pairs = list(zip(chunks, scores))
-            
-            # Sort by score descending
-            chunk_score_pairs.sort(key=lambda x: x[1], reverse=True)
-            
-            # Update relevance scores and return reranked chunks
-            reranked_chunks = []
-            for chunk, score in chunk_score_pairs[:top_k]:
-                chunk['relevance_score'] = min(float(score), 0.95)  # Cap at 0.95
-                reranked_chunks.append(chunk)
+            # Get reranked scores
+            if self.using_external_embedding_model:
+                # Use external cross encoder
+                chunk_pairs = [(question, text) for text in chunk_texts]
+                reranked_pairs = self.cross_encoder.rerank(question, chunk_texts, top_k)
                 
-            return reranked_chunks
+                # Convert back to format with chunk objects
+                reranked_chunks = []
+                used_texts = set()
+                
+                for text, score in reranked_pairs:
+                    # Find original chunk
+                    for chunk in chunks:
+                        chunk_text = chunk.get('text', '')[:512]
+                        if chunk_text == text and text not in used_texts:
+                            used_texts.add(text)
+                            chunk_copy = chunk.copy()
+                            chunk_copy['relevance_score'] = min(float(score), 0.95)
+                            reranked_chunks.append(chunk_copy)
+                            break
+                
+                return reranked_chunks[:top_k]
+            elif self.using_sentence_transformers:
+                # Use sentence-transformers cross encoder
+                chunk_pairs = [[question, text] for text in chunk_texts]
+                
+                # Score chunks
+                scores = self.cross_encoder.predict(chunk_pairs)
+                
+                # Create list of (chunk, score) pairs
+                chunk_score_pairs = list(zip(chunks, scores))
+                
+                # Sort by score descending
+                chunk_score_pairs.sort(key=lambda x: x[1], reverse=True)
+                
+                # Update relevance scores and return reranked chunks
+                reranked_chunks = []
+                for chunk, score in chunk_score_pairs[:top_k]:
+                    chunk_copy = chunk.copy()
+                    chunk_copy['relevance_score'] = min(float(score), 0.95)  # Cap at 0.95
+                    reranked_chunks.append(chunk_copy)
+                    
+                return reranked_chunks
+            else:
+                return chunks[:top_k]  # No reranking possible
             
         except Exception as e:
-            print(f"Error in reranking: {e}")
-            return chunks  # Fall back to original ranking
+            logger.error(f"Error in reranking: {e}")
+            return chunks[:top_k]  # Fall back to original ranking
     
     def _generate_rag_answer(self, question, relevant_chunks):
         """
@@ -695,7 +818,7 @@ class DocumentQA:
                 })
                 
             except Exception as e:
-                print(f"Error in QA processing: {e}")
+                logger.error(f"Error in QA processing: {e}")
                 # Add source anyway if extraction fails
                 sources.append({
                     "source": f"data/documents/{filename}",
@@ -714,7 +837,7 @@ class DocumentQA:
             return self._generate_extractive_answer(question, relevant_chunks)
         
         # Create final answer from extracted information
-        final_answer = f"Based on the documents, the answer to your question '{question}' is:\n\n"
+        final_answer = f"Basierend auf den Dokumenten ist die Antwort auf Ihre Frage '{question}':\n\n"
         
         # Take highest confidence answer as main response
         main_answer = context_texts[0].get('answer', '')
@@ -726,7 +849,7 @@ class DocumentQA:
         
         # Add additional information from other answers
         if len(context_texts) > 1:
-            final_answer += "Additional information from the documents:\n"
+            final_answer += "Zusätzliche Informationen aus den Dokumenten:\n"
             for i, ctx in enumerate(context_texts[1:3]):  # Max 2 additional answers
                 answer = ctx.get('answer', '')
                 if answer and answer != main_answer:
@@ -785,11 +908,11 @@ class DocumentQA:
         # Generate answer based on relevant texts
         if relevant_texts:
             # For general questions
-            answer = f"Based on the available documents regarding '{question}':\n\n"
+            answer = f"Basierend auf den verfügbaren Dokumenten zu '{question}':\n\n"
             for i, text in enumerate(relevant_texts[:5]):  # Top 5 relevant texts
                 answer += f"{i+1}. {text}\n\n"
         else:
             # Generic answer if no relevant texts found
-            answer = f"Sorry, I couldn't find specific information about '{question}' in the documents."
+            answer = f"Entschuldigung, ich konnte keine spezifischen Informationen zu '{question}' in den Dokumenten finden."
         
         return answer, sources
