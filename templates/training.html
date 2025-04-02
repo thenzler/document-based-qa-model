@@ -11,30 +11,62 @@
                 <div class="card-body">
                     <h3>Neues Training starten</h3>
                     <form id="trainingForm">
-                        <div class="form-group">
+                        <div class="form-group mb-3">
                             <label for="baseModel">Basis-Modell:</label>
                             <select class="form-control" id="baseModel">
-                                <option value="distilbert-base-uncased">distilbert-base-uncased (Englisch)</option>
-                                <option value="distilbert-base-multilingual-cased">distilbert-base-multilingual-cased (Mehrsprachig)</option>
-                                <option value="bert-base-german-cased">bert-base-german-cased (Deutsch)</option>
+                                {% if model_options %}
+                                    {% for option in model_options %}
+                                        <option value="{{ option.value }}">{{ option.name }}</option>
+                                    {% endfor %}
+                                {% else %}
+                                    <option value="distilbert-base-uncased">distilbert-base-uncased (Englisch, extraktiv)</option>
+                                    <option value="facebook/bart-base">BART (Englisch, generativ)</option>
+                                    <option value="t5-small">T5 (Englisch, generativ)</option>
+                                    <option value="gpt2">GPT-2 (Englisch, generativ)</option>
+                                    <option value="bert-base-german-cased">bert-base-german-cased (Deutsch, extraktiv)</option>
+                                    <option value="deutsche-telekom/gbert-base">GBERT (Deutsch, extraktiv)</option>
+                                {% endif %}
                             </select>
                         </div>
-                        <div class="form-group">
+                        
+                        <div class="form-group mb-3">
+                            <label for="modelType">Modelltyp:</label>
+                            <select class="form-control" id="modelType">
+                                {% if model_types %}
+                                    {% for type in model_types %}
+                                        <option value="{{ type.value }}">{{ type.name }}</option>
+                                    {% endfor %}
+                                {% else %}
+                                    <option value="qa">Extraktives Question-Answering</option>
+                                    <option value="seq2seq_lm">Generatives Question-Answering</option>
+                                {% endif %}
+                            </select>
+                            <small class="form-text text-muted" id="modelTypeDesc">
+                                Extraktiv: Extrahiert Antworten wörtlich aus Textpassagen<br>
+                                Generativ: Erstellt eigene formulierte Antworten basierend auf Textpassagen
+                            </small>
+                        </div>
+                        
+                        <div class="form-group mb-3">
                             <label for="epochs">Anzahl der Epochs:</label>
                             <input type="number" class="form-control" id="epochs" value="3" min="1" max="10">
                         </div>
-                        <div class="form-group">
+                        
+                        <div class="form-group mb-3">
                             <label for="batchSize">Batch-Größe:</label>
                             <input type="number" class="form-control" id="batchSize" value="4" min="1" max="16">
                         </div>
-                        <div class="form-group">
+                        
+                        <div class="form-group mb-3">
                             <label for="learningRate">Lernrate:</label>
                             <input type="number" class="form-control" id="learningRate" value="0.00005" step="0.00001" min="0.00001" max="0.001">
                         </div>
+                        
                         <div class="form-check">
                             <input type="checkbox" class="form-check-input" id="optimize" checked>
                             <label class="form-check-label" for="optimize">Modell nach dem Training optimieren</label>
                         </div>
+                        
                         <button type="button" id="startTraining" class="btn btn-primary mt-3">Training starten</button>
                     </form>
                 </div>
@@ -71,9 +103,39 @@
 
 <script>
     $(document).ready(function() {
+        // Modelltyp-Beschreibung aktualisieren bei Änderung
+        $("#modelType").change(function() {
+            let selectedType = $(this).val();
+            if (selectedType === "qa") {
+                $("#modelTypeDesc").html("Extraktiv: Extrahiert Antworten wörtlich aus Textpassagen");
+            } else if (selectedType === "seq2seq_lm") {
+                $("#modelTypeDesc").html("Generativ: Erstellt eigene formulierte Antworten basierend auf Textpassagen");
+            } else if (selectedType === "causal_lm") {
+                $("#modelTypeDesc").html("Generativ: Erstellt eigene formulierte Antworten im Autoregressive-Stil");
+            }
+        });
+        
+        // Modellauswahl und Typ synchronisieren
+        $("#baseModel").change(function() {
+            let selectedModel = $(this).val();
+            // Automatisch den richtigen Modelltyp für generative Modelle auswählen
+            if (selectedModel.includes("bart") || selectedModel.includes("t5")) {
+                $("#modelType").val("seq2seq_lm");
+                $("#modelType").trigger("change");
+            } else if (selectedModel.includes("gpt")) {
+                $("#modelType").val("causal_lm");
+                $("#modelType").trigger("change");
+            } else {
+                // Für BERT/DistilBERT Modelle: extraktives QA
+                $("#modelType").val("qa");
+                $("#modelType").trigger("change");
+            }
+        });
+        
         // Training starten
         $("#startTraining").click(function() {
             const baseModel = $("#baseModel").val();
+            const modelType = $("#modelType").val();
             const epochs = parseInt($("#epochs").val());
             const batchSize = parseInt($("#batchSize").val());
             const learningRate = parseFloat($("#learningRate").val());
@@ -92,6 +154,7 @@
                 contentType: "application/json",
                 data: JSON.stringify({
                     base_model: baseModel,
+                    model_type: modelType,
                     epochs: epochs,
                     batch_size: batchSize,
                     learning_rate: learningRate,
