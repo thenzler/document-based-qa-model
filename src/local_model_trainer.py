@@ -25,7 +25,10 @@ from transformers import (
     AutoModelForSeq2SeqLM,
     Trainer, 
     TrainingArguments,
+    Seq2SeqTrainer,
+    Seq2SeqTrainingArguments,
     DataCollatorForLanguageModeling,
+    DataCollatorForSeq2Seq,
     TextDataset,
     default_data_collator
 )
@@ -105,11 +108,26 @@ class LocalModelTrainer:
             # Tokenizer laden
             self.tokenizer = AutoTokenizer.from_pretrained(self.base_model_name)
             
+            # Stelle sicher, dass der Tokenizer die erforderlichen Tokens hat
+            if self.model_type in ["causal_lm", "seq2seq_lm"]:
+                special_tokens = {}
+                
+                if self.tokenizer.pad_token is None:
+                    if self.tokenizer.eos_token is not None:
+                        self.tokenizer.pad_token = self.tokenizer.eos_token
+                    else:
+                        special_tokens["pad_token"] = "[PAD]"
+                
+                if special_tokens:
+                    self.tokenizer.add_special_tokens(special_tokens)
+            
             # Je nach Modelltyp das passende Modell laden
             if self.model_type == "qa":
                 self.model = AutoModelForQuestionAnswering.from_pretrained(self.base_model_name)
             elif self.model_type == "causal_lm":
                 self.model = AutoModelForCausalLM.from_pretrained(self.base_model_name)
+                if hasattr(self.model.config, "pad_token_id") and self.model.config.pad_token_id is None:
+                    self.model.config.pad_token_id = self.tokenizer.pad_token_id
             elif self.model_type == "seq2seq_lm":
                 self.model = AutoModelForSeq2SeqLM.from_pretrained(self.base_model_name)
             else:
@@ -347,18 +365,50 @@ class LocalModelTrainer:
             return False
     
     def _train_seq2seq_lm(self, train_file, epochs, batch_size, learning_rate):
-        """Seq2Seq-LM-Modell trainieren."""
-        # Ähnlich wie causal_lm, aber mit anderer Konfiguration
-        # Dieser Code ist vereinfacht und müsste in einer vollständigen Implementierung
-        # mit passenden Seq2Seq-Datensätzen erweitert werden
+        """Seq2Seq-LM-Modell für generatives QA trainieren."""
         try:
-            # Hier würde die Seq2Seq-spezifische Implementierung stehen
-            logger.info("Seq2Seq-Training wird simuliert (Demo)")
+            logger.info("Generatives QA-Modell wird trainiert")
             
-            # Wir simulieren hier nur ein Training für die Demo
+            # QA-Beispiele erstellen (mit generierten Antworten)
+            qa_examples = self._create_generative_qa_examples(train_file)
+            
+            # Trainingskonfiguration
+            training_args = Seq2SeqTrainingArguments(
+                output_dir=str(self.output_dir / "checkpoints"),
+                num_train_epochs=epochs,
+                per_device_train_batch_size=batch_size,
+                learning_rate=learning_rate,
+                weight_decay=0.01,
+                save_strategy="epoch",
+                logging_dir=str(self.output_dir / "logs"),
+                logging_steps=100,
+                # Wichtig für Seq2Seq-Training
+                predict_with_generate=True,
+                generation_max_length=128,
+                generation_num_beams=4,
+            )
+            
+            # Data collator für Seq2Seq
+            data_collator = DataCollatorForSeq2Seq(
+                tokenizer=self.tokenizer,
+                model=self.model,
+                padding=True
+            )
+            
+            # Trainer initialisieren
+            trainer = Seq2SeqTrainer(
+                model=self.model,
+                args=training_args,
+                train_dataset=qa_examples,
+                data_collator=data_collator,
+                tokenizer=self.tokenizer,
+            )
+            
+            # Training durchführen
+            train_result = trainer.train()
             self.training_metrics = {
-                "train_loss": 0.1234,
-                "train_steps": epochs * 100
+                "train_loss": float(train_result.training_loss),
+                "train_steps": int(train_result.global_step)
             }
             
             # Modell speichern
@@ -368,7 +418,7 @@ class LocalModelTrainer:
             return True
             
         except Exception as e:
-            logger.error(f"Fehler beim Training des Seq2Seq-Modells: {e}")
+            logger.error(f"Fehler beim Training des generativen QA-Modells: {e}")
             return False
     
     def _create_qa_examples(self, train_file):
@@ -424,6 +474,111 @@ class LocalModelTrainer:
         
         # Erstelle und gib das Mock-Dataset zurück
         return MockDataset(self.tokenizer, train_file)
+    
+    def _create_generative_qa_examples(self, train_file):
+        """
+        Erstellt generative QA-Beispiele aus dem Textkorpus.
+        """
+        class GenerativeQADataset(torch.utils.data.Dataset):
+            def __init__(self, tokenizer, file_path, n_examples=100, chunk_size=512):
+                self.tokenizer = tokenizer
+                self.chunk_size = chunk_size
+                
+                # Text laden und in Abschnitte aufteilen
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    text = f.read()
+                
+                self.contexts = []
+                for i in range(0, len(text), chunk_size * 2):
+                    if i + chunk_size < len(text):
+                        self.contexts.append(text[i:i+chunk_size])
+                
+                # Auf maximal n_examples begrenzen
+                self.contexts = self.contexts[:n_examples]
+                
+                # Beispiel-Fragen für jeden Kontext generieren
+                self.examples = []
+                for i, context in enumerate(self.contexts):
+                    # Fragen zu jedem Kontext erstellen (in einer realen Implementierung würden
+                    # diese aus einem Trainingsdataset stammen oder mit einem Frage-Generator erstellt)
+                    questions = [
+                        f"Worum geht es in diesem Text?",
+                        f"Zusammenfassung des Textes:",
+                        f"Was sind die Hauptpunkte dieses Abschnitts?"
+                    ]
+                    
+                    for question in questions[:1]:  # Nur die erste Frage verwenden für Einfachheit
+                        self.examples.append({
+                            "context": context,
+                            "question": question,
+                            "answer": f"In diesem Text geht es um {' '.join(context.split()[:10])}..." 
+                                      # Vereinfachte "Antwort" für das Demo-Training
+                        })
+            
+            def __len__(self):
+                return len(self.examples)
+            
+            def __getitem__(self, idx):
+                example = self.examples[idx]
+                
+                # Für seq2seq-Modelle wie BART oder T5
+                if 't5' in self.tokenizer.name_or_path.lower():
+                    # T5 verwendet ein bestimmtes Format: "question: FRAGE context: KONTEXT"
+                    input_text = f"question: {example['question']} context: {example['context']}"
+                    target_text = example['answer']
+                    
+                    inputs = self.tokenizer(input_text, 
+                                           max_length=self.chunk_size,
+                                           truncation=True,
+                                           padding="max_length",
+                                           return_tensors="pt")
+                    
+                    targets = self.tokenizer(target_text,
+                                            max_length=128,
+                                            truncation=True,
+                                            padding="max_length",
+                                            return_tensors="pt")
+                    
+                    input_ids = inputs.input_ids.squeeze()
+                    attention_mask = inputs.attention_mask.squeeze()
+                    labels = targets.input_ids.squeeze()
+                    
+                    # -100 für gepadded tokens, damit diese nicht in die Loss-Berechnung einfließen
+                    labels[labels == self.tokenizer.pad_token_id] = -100
+                    
+                    return {
+                        "input_ids": input_ids,
+                        "attention_mask": attention_mask,
+                        "labels": labels
+                    }
+                else:
+                    # BART und andere seq2seq Modelle
+                    inputs = self.tokenizer(example['question'], example['context'], 
+                                           max_length=self.chunk_size,
+                                           truncation=True,
+                                           padding="max_length",
+                                           return_tensors="pt")
+                    
+                    targets = self.tokenizer(example['answer'],
+                                            max_length=128,
+                                            truncation=True,
+                                            padding="max_length",
+                                            return_tensors="pt")
+                    
+                    input_ids = inputs.input_ids.squeeze()
+                    attention_mask = inputs.attention_mask.squeeze()
+                    labels = targets.input_ids.squeeze()
+                    
+                    # -100 für gepadded tokens
+                    labels[labels == self.tokenizer.pad_token_id] = -100
+                    
+                    return {
+                        "input_ids": input_ids,
+                        "attention_mask": attention_mask,
+                        "labels": labels
+                    }
+        
+        return GenerativeQADataset(self.tokenizer, train_file)
     
     def optimize_model(self, quantize=True, onnx_export=True):
         """
@@ -486,6 +641,8 @@ class LocalModelTrainer:
                         logger.error(f"Fehler beim ONNX-Export: {e}")
             elif onnx_export and not OPTIMUM_AVAILABLE:
                 logger.warning("ONNX-Export übersprungen, da optimum nicht verfügbar ist.")
+            elif onnx_export and self.model_type != "qa":
+                logger.warning(f"ONNX-Export für Modelltyp {self.model_type} nicht unterstützt.")
                 
             # Quantisierung (hier vereinfacht)
             if quantize:
@@ -572,26 +729,50 @@ class LocalModelTrainer:
 ### Laden des Modells
 
 ```python
-from transformers import AutoTokenizer, AutoModelForQuestionAnswering
+from transformers import AutoTokenizer, AutoModelForQuestionAnswering, AutoModelForSeq2SeqLM
 
 # Pfad zum entpackten Modell
 model_path = "final_model"  # oder "optimized/onnx" für das ONNX-Modell
 
-# Tokenizer und Modell laden
+# Tokenizer laden
 tokenizer = AutoTokenizer.from_pretrained(model_path)
-model = AutoModelForQuestionAnswering.from_pretrained(model_path)
 
-# Frage stellen
-question = "Ihre Frage hier"
-context = "Der Kontext, in dem die Frage beantwortet werden soll"
-inputs = tokenizer(question, context, return_tensors="pt")
-outputs = model(**inputs)
-
-# Antwort extrahieren
-answer_start = torch.argmax(outputs.start_logits)
-answer_end = torch.argmax(outputs.end_logits) + 1
-answer = tokenizer.decode(inputs.input_ids[0][answer_start:answer_end])
-print(f"Antwort: {{answer}}")
+# Je nach Modelltyp das passende Modell laden
+if "{model_type}" == "qa":
+    # Extraktives QA-Modell
+    model = AutoModelForQuestionAnswering.from_pretrained(model_path)
+    
+    # Frage stellen
+    question = "Ihre Frage hier"
+    context = "Der Kontext, in dem die Frage beantwortet werden soll"
+    inputs = tokenizer(question, context, return_tensors="pt")
+    outputs = model(**inputs)
+    
+    # Antwort extrahieren
+    answer_start = torch.argmax(outputs.start_logits)
+    answer_end = torch.argmax(outputs.end_logits) + 1
+    answer = tokenizer.decode(inputs.input_ids[0][answer_start:answer_end])
+    print(f"Antwort: {{answer}}")
+    
+elif "{model_type}" == "seq2seq_lm":
+    # Generatives QA-Modell
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_path)
+    
+    # Frage stellen
+    question = "Ihre Frage hier"
+    context = "Der Kontext, in dem die Frage beantwortet werden soll"
+    
+    inputs = tokenizer(question, context, return_tensors="pt", max_length=512, truncation=True)
+    outputs = model.generate(
+        inputs.input_ids,
+        max_length=150,
+        num_beams=4,
+        early_stopping=True
+    )
+    
+    # Generierte Antwort
+    answer = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    print(f"Antwort: {{answer}}")
 ```
 
 ### Für fortgeschrittene Anwendungen
