@@ -17,6 +17,9 @@
     <!-- jQuery für AJAX-Anfragen -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     
+    <!-- Bootstrap JS für Modals und andere Komponenten -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
     <!-- Additional styles -->
     {% block styles %}{% endblock %}
     
@@ -140,23 +143,25 @@
                 </a>
             </li>
             <li>
-                <a href="{{ url_for('index') }}" {% if '/qa' in request.path %}class="active"{% endif %}>
+                <a href="{{ url_for('qa_page') }}" {% if '/qa' in request.path %}class="active"{% endif %}>
                     <i class="fas fa-question-circle"></i>
                     Question & Answer
                 </a>
             </li>
             <li>
-                <a href="{{ url_for('get_documents') }}" {% if '/documents' in request.path %}class="active"{% endif %}>
+                <a href="{{ url_for('documents_page') }}" {% if '/documents' in request.path %}class="active"{% endif %}>
                     <i class="fas fa-file-alt"></i>
-                    Documents
+                    Dokumente
                 </a>
             </li>
+            {% if design.training_available %}
             <li>
-                <a href="{{ url_for('training.training_page') }}" {% if '/training' in request.path %}class="active"{% endif %}>
+                <a href="{{ url_for('models_page') }}" {% if '/models' in request.path %}class="active"{% endif %}>
                     <i class="fas fa-brain"></i>
-                    Modell-Training
+                    Modelle
                 </a>
             </li>
+            {% endif %}
         </ul>
     </nav>
     
