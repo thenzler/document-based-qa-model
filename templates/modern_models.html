@@ -1,0 +1,277 @@
+{% extends "modern_layout.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-header bg-white border-0">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2 class="mb-0 text-primary">Modellverwaltung</h2>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <div>
+                        <strong>Modellstatus:</strong> Diese Seite zeigt den Status der aktuell aktiven Modelle im System.
+                        Trainierte Modelle werden automatisch als Standard für die Beantwortung von Fragen verwendet.
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <h3 class="mb-3 text-secondary">Aktive Modelle</h3>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Modelltyp</th>
+                                <th>Status</th>
+                                <th>Pfad</th>
+                                <th>Trainiert am</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activeModelsTable">
+                            <!-- Will be filled by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            {% if model_info.training_available %}
+            <div class="mt-4">
+                <h3 class="mb-3 text-secondary">Modelltraining</h3>
+                <div class="card border-0 shadow-sm bg-light">
+                    <div class="card-body">
+                        <h4 class="card-title">Neues Training starten</h4>
+                        <p class="card-text">
+                            Trainieren Sie ein neues Modell basierend auf den hochgeladenen Dokumenten.
+                            Das trainierte Modell wird dann automatisch als Standard für die Beantwortung von Fragen eingesetzt.
+                        </p>
+                        
+                        <form id="trainModelForm">
+                            <div class="mb-3">
+                                <label for="modelType" class="form-label">Modelltyp</label>
+                                <select class="form-select" id="modelType" name="modelType">
+                                    <option value="all">Alle Modelle</option>
+                                    <option value="embedding">Embedding-Modell</option>
+                                    <option value="cross-encoder">Cross-Encoder</option>
+                                    <option value="qa">QA-Modell</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="epochs" class="form-label">Trainingszyklen (Epochs)</label>
+                                <input type="number" class="form-control" id="epochs" name="epochs" min="1" max="10" value="3">
+                                <div class="form-text">Mehr Zyklen = längere Trainingszeit, potentiell bessere Ergebnisse</div>
+                            </div>
+                            
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary" id="startTrainingBtn">
+                                    <i class="fas fa-play me-2"></i>Training starten
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Training Progress Modal -->
+<div class="modal fade" id="trainingProgressModal" tabindex="-1" aria-labelledby="trainingProgressModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="trainingProgressModalLabel">Modelltraining läuft</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Lädt...</span>
+                    </div>
+                </div>
+                <p>Das Modelltraining kann mehrere Minuten dauern. Bitte haben Sie Geduld.</p>
+                <div class="progress">
+                    <div id="trainingProgress" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                </div>
+                <div id="trainingStatus" class="mt-3 text-center">Initialisiere Training...</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Load active models
+        loadActiveModels();
+        
+        // Handle form submission
+        $('#trainModelForm').on('submit', function(e) {
+            e.preventDefault();
+            startTraining();
+        });
+    });
+    
+    function loadActiveModels() {
+        $.ajax({
+            url: '/api/system/status',
+            method: 'GET',
+            success: function(response) {
+                updateActiveModelsTable(response.active_models || {});
+            },
+            error: function(error) {
+                console.error('Error fetching model status:', error);
+                showAlert('error', 'Fehler beim Abrufen der Modellinformationen');
+            }
+        });
+    }
+    
+    function updateActiveModelsTable(activeModels) {
+        const table = $('#activeModelsTable');
+        table.empty();
+        
+        const modelTypes = [
+            { key: 'embedding_model', name: 'Embedding Modell' },
+            { key: 'cross_encoder_model', name: 'Cross-Encoder Modell' },
+            { key: 'qa_model', name: 'QA Modell' }
+        ];
+        
+        modelTypes.forEach(function(type) {
+            const modelPath = activeModels[type.key];
+            let status, timestamp;
+            
+            if (modelPath) {
+                status = '<span class="badge bg-success">Trainiert</span>';
+                // Extract timestamp from path (assuming format: *_YYYYMMDD_HHMMSS)
+                const match = modelPath.match(/(\d{8}_\d{6})/);
+                if (match) {
+                    // Convert timestamp format
+                    const ts = match[1];
+                    const year = ts.substring(0, 4);
+                    const month = ts.substring(4, 6);
+                    const day = ts.substring(6, 8);
+                    const hour = ts.substring(9, 11);
+                    const minute = ts.substring(11, 13);
+                    timestamp = `${day}.${month}.${year} ${hour}:${minute}`;
+                } else {
+                    timestamp = 'Unbekannt';
+                }
+            } else {
+                status = '<span class="badge bg-warning text-dark">Standard</span>';
+                timestamp = 'Nicht trainiert';
+            }
+            
+            table.append(`
+                <tr>
+                    <td>${type.name}</td>
+                    <td>${status}</td>
+                    <td><small class="text-muted">${modelPath || 'Standard-Modell'}</small></td>
+                    <td>${timestamp}</td>
+                </tr>
+            `);
+        });
+        
+        if (Object.keys(activeModels).length === 0) {
+            table.append(`
+                <tr>
+                    <td colspan="4" class="text-center text-muted">
+                        Keine trainierten Modelle vorhanden. Standard-Modelle werden verwendet.
+                    </td>
+                </tr>
+            `);
+        }
+    }
+    
+    function startTraining() {
+        // Get form values
+        const modelType = $('#modelType').val();
+        const epochs = $('#epochs').val();
+        
+        // Show training progress modal
+        $('#trainingProgressModal').modal('show');
+        $('#trainingProgress').css('width', '10%');
+        $('#trainingStatus').text('Training wird initialisiert...');
+        
+        // Start training via API
+        $.ajax({
+            url: '/api/models/train',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                modelType: modelType,
+                epochs: parseInt(epochs)
+            }),
+            success: function(response) {
+                console.log('Training response:', response);
+                $('#trainingProgress').css('width', '100%');
+                $('#trainingStatus').html('<span class="text-success">Training erfolgreich abgeschlossen!</span>');
+                
+                setTimeout(function() {
+                    $('#trainingProgressModal').modal('hide');
+                    showAlert('success', 'Modelltraining erfolgreich abgeschlossen. Die neuen Modelle werden jetzt für die Beantwortung von Fragen verwendet.');
+                    loadActiveModels();
+                }, 2000);
+            },
+            error: function(error) {
+                console.error('Training error:', error);
+                $('#trainingProgress').css('width', '100%').removeClass('bg-primary').addClass('bg-danger');
+                $('#trainingStatus').html('<span class="text-danger">Fehler beim Training: ' + (error.responseJSON?.error || 'Unbekannter Fehler') + '</span>');
+                
+                setTimeout(function() {
+                    $('#trainingProgressModal').modal('hide');
+                    showAlert('error', 'Fehler beim Modelltraining: ' + (error.responseJSON?.error || 'Unbekannter Fehler'));
+                }, 2000);
+            }
+        });
+        
+        // Simulate progress updates
+        let progress = 10;
+        const progressInterval = setInterval(function() {
+            progress += Math.floor(Math.random() * 5) + 1;
+            if (progress > 90) {
+                clearInterval(progressInterval);
+                progress = 90; // Cap at 90%, success or error callback will complete it
+            }
+            $('#trainingProgress').css('width', progress + '%');
+            
+            // Update status message based on progress
+            if (progress < 30) {
+                $('#trainingStatus').text('Generiere Trainingsdaten...');
+            } else if (progress < 60) {
+                $('#trainingStatus').text('Modell wird trainiert...');
+            } else {
+                $('#trainingStatus').text('Optimierung und Evaluation...');
+            }
+        }, 1500);
+    }
+    
+    function showAlert(type, message) {
+        const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+        const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+        
+        const alertHtml = `
+            <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+                <i class="fas ${icon} me-2"></i> ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        
+        // Insert alert at the top of the card body
+        $('.card-body').prepend(alertHtml);
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(function() {
+            $('.alert').alert('close');
+        }, 5000);
+    }
+</script>
+{% endblock %}
