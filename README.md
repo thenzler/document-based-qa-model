@@ -20,12 +20,14 @@ Das System bietet folgende Hauptfunktionen:
    - Cross-Encoder-Reranking für verbesserte Retrieval-Präzision
    - Multi-Query-Variationen für bessere Ergebnisse
    - Semantische Dokumentchunking mit Kontexterhaltung
+   - **NEU**: Automatisches Training und Deployment von Modellen
 
 3. **Web-Benutzeroberfläche**:
    - Intuitive Benutzeroberfläche mit SCODi 4P Design
    - Datei-Upload und -Verwaltung
    - Visualisierung der Ergebnisse mit Quellenangabe
    - Anpassbare Einstellungen
+   - **NEU**: Modellverwaltungsseite für Training und Überwachung
 
 ## Design-System
 
@@ -90,6 +92,12 @@ Das Projekt verwendet das SCODi 4P Design-System mit folgenden Komponenten:
 2. Neue Dokumente hochladen (PDF, DOCX, TXT, MD, HTML)
 3. Einstellungen für die Dokumentverarbeitung anpassen
 
+### Modellverwaltung und Training (NEU)
+
+1. Zum Bereich "Modelle" navigieren
+2. Status der aktiven Modelle einsehen
+3. Neue Modelle trainieren, die automatisch als Standard verwendet werden
+
 ## Architektur
 
 Das System basiert auf einer modularen Architektur mit folgenden Komponenten:
@@ -108,6 +116,11 @@ Das System basiert auf einer modularen Architektur mit folgenden Komponenten:
    - Flask-basierte Weboberfläche mit SCODi 4P Design
    - Responsives Design
    - Interaktive Komponenten mit JavaScript
+
+4. **Modelltraining** (NEU):
+   - Training von benutzerdefinierten Modellen basierend auf Dokumentendaten
+   - Automatisches Deployment als Standardmodelle für die Fragenbeantwortung
+   - Verwaltung und Überwachung der trainierten Modelle
 
 ## Machine Learning Komponenten
 
@@ -148,6 +161,16 @@ Das System enthält intelligentes Dokumentchunking, das Kontextgrenzen und seman
 # Von qa_system_rag.py
 def _create_semantic_chunks(self, text, chunk_size=1000, overlap=200):
     # Semantisches Chunking-Implementation
+```
+
+### Modelltraining und automatische Aktivierung (NEU)
+
+Das System ermöglicht nun das Training eigener Modelle, die automatisch für die Beantwortung von Fragen verwendet werden.
+
+```python
+# Von train_model.py
+def train_embedding_model(self, training_data, validation_data=None, epochs=3, batch_size=16):
+    # Training-Implementation
 ```
 
 ## Konfiguration
